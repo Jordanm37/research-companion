@@ -2,7 +2,19 @@
 
 ## Overview
 
-Research Reader is a web-based PDF annotation and note-taking application designed for researchers. It allows users to upload PDFs, create various types of annotations (highlights, rectangles, margin notes), organize notes by type (summary, critique, question, insight, etc.), and export everything to Obsidian-compatible markdown format. The application includes AI-powered analysis features using OpenAI integration.
+Research Reader is a web-based PDF annotation and note-taking application designed for researchers. It allows users to upload PDFs, create various types of annotations (highlights, rectangles, margin notes), organize notes by type (summary, critique, question, insight, etc.), and export everything to Obsidian-compatible markdown format. The application includes AI-powered analysis features.
+
+## Recent Changes (January 2026)
+
+### AI Research Assistant Feature
+- Added Claude-powered research assistant for paper analysis
+- Select text in PDFs to trigger a context popup with AI research actions:
+  - **Find Similar Papers**: Get search suggestions for related research
+  - **Explore Topic**: Deep dive into concepts and related areas
+  - **Explain**: Get explanations of technical concepts and methodologies  
+  - **Custom Query**: Ask any question about the selected text
+- New **Research** tab in side panel showing conversation history with streaming responses
+- Uses Anthropic Claude claude-sonnet-4-5 model via Replit AI integrations (billed to credits)
 
 ## User Preferences
 
@@ -50,7 +62,8 @@ Preferred communication style: Simple, everyday language.
 
 ### AI Services
 - **OpenAI API**: Used for text analysis, summarization, and AI-powered note generation
-- Environment variables: `AI_INTEGRATIONS_OPENAI_API_KEY`, `AI_INTEGRATIONS_OPENAI_BASE_URL`
+- **Anthropic API**: Used for the research assistant feature (Claude claude-sonnet-4-5)
+- Environment variables: `AI_INTEGRATIONS_OPENAI_API_KEY`, `AI_INTEGRATIONS_OPENAI_BASE_URL`, `AI_INTEGRATIONS_ANTHROPIC_API_KEY`, `AI_INTEGRATIONS_ANTHROPIC_BASE_URL`
 
 ### File Storage
 - **Local uploads**: PDFs stored in `uploads/` directory on the server

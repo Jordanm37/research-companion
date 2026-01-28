@@ -59,11 +59,11 @@ export function SelectionPopup({
         <Button
           size="icon"
           variant="ghost"
-          className="h-6 w-6 shrink-0"
+          className="shrink-0"
           onClick={onClose}
           data-testid="button-close-popup"
         >
-          <X className="w-3 h-3" />
+          <X className="w-4 h-4" />
         </Button>
       </div>
 
@@ -72,7 +72,7 @@ export function SelectionPopup({
           <Button
             variant="ghost"
             size="sm"
-            className="justify-start gap-2 h-8"
+            className="justify-start gap-2"
             onClick={() => handleAction("find_similar")}
             data-testid="button-find-similar"
           >
@@ -82,7 +82,7 @@ export function SelectionPopup({
           <Button
             variant="ghost"
             size="sm"
-            className="justify-start gap-2 h-8"
+            className="justify-start gap-2"
             onClick={() => handleAction("explore_topic")}
             data-testid="button-explore-topic"
           >
@@ -92,7 +92,7 @@ export function SelectionPopup({
           <Button
             variant="ghost"
             size="sm"
-            className="justify-start gap-2 h-8"
+            className="justify-start gap-2"
             onClick={() => handleAction("ask_question")}
             data-testid="button-ask-question"
           >
@@ -102,7 +102,7 @@ export function SelectionPopup({
           <Button
             variant="ghost"
             size="sm"
-            className="justify-start gap-2 h-8"
+            className="justify-start gap-2"
             onClick={() => setShowCustomInput(true)}
             data-testid="button-custom-query"
           >

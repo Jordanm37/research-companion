@@ -150,7 +150,7 @@ export type InsertResearchChatMessage = z.infer<typeof insertResearchChatMessage
 // Research chat request schema
 export const researchChatRequestSchema = z.object({
   query: z.string(),
-  selectedText: z.string(),
+  selectedText: z.string().optional().default(""),
   actionType: researchActionTypeEnum,
 });
 export type ResearchChatRequest = z.infer<typeof researchChatRequestSchema>;
