@@ -34,6 +34,10 @@ export default function ReaderPage() {
     title?: string;
     index?: number;
   } | null>(null);
+  const [activeToolUse, setActiveToolUse] = useState<{
+    name: string;
+    input: Record<string, unknown>;
+  } | null>(null);
   const [vaultPath, setVaultPath] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("vaultPath") || "/obsidian-vault";
@@ -285,6 +289,7 @@ export default function ReaderPage() {
     setResearchChatStreamingContent("");
     setCurrentActionType(actionType);
     setMatchedReference(null);
+    setActiveToolUse(null);
 
     try {
       const response = await fetch(`/api/papers/${activePaperId}/research-chat`, {
@@ -321,7 +326,11 @@ export default function ReaderPage() {
               if (data.matchedReference !== undefined) {
                 setMatchedReference(data.matchedReference);
               }
+              if (data.toolUse) {
+                setActiveToolUse(data.toolUse);
+              }
               if (data.content) {
+                setActiveToolUse(null);
                 fullContent += data.content;
                 setResearchChatStreamingContent(fullContent);
               }
@@ -329,6 +338,7 @@ export default function ReaderPage() {
                 setResearchChatStreamingContent("");
                 setMatchedReference(null);
                 setCurrentActionType(null);
+                setActiveToolUse(null);
                 queryClient.invalidateQueries({ 
                   queryKey: ["/api/papers", activePaperId, "research-chat"] 
                 });
@@ -417,6 +427,7 @@ export default function ReaderPage() {
             researchChatStreamingContent={researchChatStreamingContent}
             matchedReference={matchedReference}
             currentActionType={currentActionType}
+            activeToolUse={activeToolUse}
             onClearResearchChat={handleClearResearchChat}
             activeTab={activeTab}
             onTabChange={setActiveTab}

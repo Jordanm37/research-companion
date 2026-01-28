@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Trash2, MessageSquare, Bot, User, BookOpen } from "lucide-react";
+import { Loader2, Trash2, MessageSquare, Bot, User, BookOpen, Search, Globe } from "lucide-react";
 import type { ResearchChatMessage } from "@shared/schema";
 
 interface MatchedReference {
@@ -12,6 +12,11 @@ interface MatchedReference {
   index?: number;
 }
 
+interface ActiveToolUse {
+  name: string;
+  input: Record<string, unknown>;
+}
+
 interface ResearchChatProps {
   paperId: string | null;
   messages: ResearchChatMessage[];
@@ -19,6 +24,7 @@ interface ResearchChatProps {
   streamingContent: string;
   matchedReference?: MatchedReference | null;
   currentActionType?: string | null;
+  activeToolUse?: ActiveToolUse | null;
   onClearChat: () => void;
 }
 
@@ -29,6 +35,7 @@ export function ResearchChat({
   streamingContent,
   matchedReference,
   currentActionType,
+  activeToolUse,
   onClearChat,
 }: ResearchChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -156,7 +163,7 @@ export function ResearchChat({
                     )}
                   </div>
                 )}
-                {currentActionType === "paper_summary" && matchedReference === null && isLoading && !streamingContent && (
+                {currentActionType === "paper_summary" && matchedReference === null && isLoading && !streamingContent && !activeToolUse && (
                   <div className="mb-2 p-2 bg-background/50 rounded border text-xs text-muted-foreground" data-testid="no-matched-reference">
                     <div className="flex items-center gap-1.5">
                       <BookOpen className="w-3 h-3" />
@@ -164,16 +171,34 @@ export function ResearchChat({
                     </div>
                   </div>
                 )}
+                {activeToolUse && (
+                  <div className="mb-2 p-2 bg-primary/5 rounded border border-primary/20 text-xs" data-testid="active-tool-use">
+                    <div className="flex items-center gap-1.5 text-primary mb-1">
+                      {activeToolUse.name === "search_arxiv" ? (
+                        <Search className="w-3 h-3" />
+                      ) : (
+                        <Globe className="w-3 h-3" />
+                      )}
+                      <span className="font-medium">
+                        {activeToolUse.name === "search_arxiv" ? "Searching arXiv..." : "Searching the web..."}
+                      </span>
+                      <Loader2 className="w-3 h-3 animate-spin ml-auto" />
+                    </div>
+                    <div className="text-muted-foreground truncate">
+                      Query: {String(activeToolUse.input.query || "")}
+                    </div>
+                  </div>
+                )}
                 {streamingContent ? (
                   <div className="whitespace-pre-wrap break-words">
                     {streamingContent}
                   </div>
-                ) : (
+                ) : !activeToolUse ? (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     <span>Thinking...</span>
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           )}

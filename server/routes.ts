@@ -21,6 +21,7 @@ import {
   type Reference
 } from "@shared/schema";
 import { findReferencesSection, parseReferences, matchCitationToReference } from "./referenceExtractor";
+import { arxivToolDefinition, executeArxivTool } from "./arxivTool";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -33,25 +34,29 @@ const anthropic = new Anthropic({
 });
 
 function getResearchSystemPrompt(): string {
-  return `You are a helpful research assistant specialized in academic literature and paper discovery. 
+  return `You are a helpful research assistant with access to real-time tools for academic research.
+
+YOUR TOOLS:
+1. **search_arxiv** - Search arXiv for papers by title, author, topic, or arXiv ID. Use this to find actual papers with links.
+2. **web_search** - Search the web for broader research information, blogs, tutorials, and news.
 
 Your role is to:
-- Help researchers find related papers and explore research topics
-- Suggest search queries and keywords for academic databases (Google Scholar, Semantic Scholar, arXiv, PubMed, etc.)
-- Explain concepts and methodologies mentioned in papers
-- Identify key themes, connections, and research directions
+- Find and link to real academic papers using your search tools
+- Help researchers explore topics and find related work
+- Explain concepts and methodologies
+- ALWAYS use search_arxiv when asked about papers or citations - provide real links
 
 Important guidelines:
-- DO NOT fabricate specific paper titles, authors, or citations
-- Instead, suggest specific search terms and database queries
-- When asked about similar papers, describe the types of papers to look for and what keywords to use
-- Be honest about the limitations of your knowledge
-- Focus on being genuinely helpful for research discovery
+- When asked about a paper or citation, SEARCH for it to get real information and links
+- Always include arXiv links (https://arxiv.org/abs/...) when you find papers
+- Use web_search for broader context or when arXiv doesn't have what's needed
+- Be honest about what you find vs what you couldn't find
+- Synthesize search results into helpful responses
 
 Format your responses clearly with:
-- Bullet points for lists of suggestions
-- Bold text for key terms (**term**)
-- Numbered steps for instructions`;
+- Links to papers (always include the arXiv link when available)
+- Bullet points for lists
+- Bold text for key terms (**term**)`;
 }
 
 function buildResearchQuery(
@@ -648,7 +653,7 @@ export async function registerRoutes(
     }
   });
 
-  // Research Chat - Send message and get AI response (streaming)
+  // Research Chat - Send message and get AI response (agentic with tools)
   app.post("/api/papers/:paperId/research-chat", async (req, res) => {
     try {
       const paperId = req.params.paperId;
@@ -664,7 +669,7 @@ export async function registerRoutes(
 
       const { query, selectedText, actionType } = parseResult.data;
 
-      // For paper_summary action, try to match citation to reference
+      // For paper_summary action, try to match citation to reference (still useful for context)
       let matchedReference: Reference | null = null;
       if (actionType === "paper_summary" && paper.references && selectedText) {
         matchedReference = matchCitationToReference(selectedText, paper.references);
@@ -685,9 +690,9 @@ export async function registerRoutes(
         actionType,
       });
 
-      // Get chat history for context
+      // Get chat history for context (limit to prevent token overflow)
       const history = await storage.getResearchChatMessages(paperId);
-      const contextMessages = history.slice(-10).map(m => ({
+      const contextMessages: Anthropic.MessageParam[] = history.slice(-6).map(m => ({
         role: m.role as "user" | "assistant",
         content: m.content,
       }));
@@ -710,23 +715,102 @@ export async function registerRoutes(
         })}\n\n`);
       }
 
-      // Stream response from Anthropic
-      const stream = anthropic.messages.stream({
-        model: "claude-sonnet-4-5",
-        max_tokens: 2048,
-        system: getResearchSystemPrompt(),
-        messages: contextMessages,
-      });
+      // Define tools
+      const tools: Anthropic.Tool[] = [
+        arxivToolDefinition,
+        {
+          name: "web_search",
+          description: "Search the web for information. Use for broader research context, news, tutorials, or when arXiv doesn't have what's needed.",
+          input_schema: {
+            type: "object",
+            properties: {
+              query: {
+                type: "string",
+                description: "Search query"
+              }
+            },
+            required: ["query"]
+          }
+        }
+      ];
 
       let fullResponse = "";
+      let messages = [...contextMessages];
+      const MAX_ITERATIONS = 5;
+      let iterations = 0;
 
-      for await (const event of stream) {
-        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-          const content = event.delta.text;
-          if (content) {
-            fullResponse += content;
-            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      // Agentic loop - keep running until we get a final response or hit max iterations
+      while (iterations < MAX_ITERATIONS) {
+        iterations++;
+        
+        const response = await anthropic.messages.create({
+          model: "claude-sonnet-4-5",
+          max_tokens: 4096,
+          system: getResearchSystemPrompt(),
+          messages,
+          tools,
+        });
+
+        // Process response content
+        let hasToolUse = false;
+        const toolResults: Anthropic.ToolResultBlockParam[] = [];
+
+        for (const block of response.content) {
+          if (block.type === "text") {
+            // Stream text content to client
+            fullResponse += block.text;
+            res.write(`data: ${JSON.stringify({ content: block.text })}\n\n`);
+          } else if (block.type === "tool_use") {
+            hasToolUse = true;
+            const toolName = block.name;
+            const toolInput = block.input as Record<string, unknown>;
+            
+            // Notify client about tool usage
+            res.write(`data: ${JSON.stringify({ 
+              toolUse: { name: toolName, input: toolInput }
+            })}\n\n`);
+
+            console.log(`Executing tool: ${toolName}`, toolInput);
+
+            // Execute the tool
+            let toolResult: string;
+            try {
+              if (toolName === "search_arxiv") {
+                toolResult = await executeArxivTool(toolInput as { query: string; max_results?: number });
+              } else if (toolName === "web_search") {
+                // For web_search, we'll use a simple message since we don't have the built-in tool
+                // In a production setup, you'd integrate with a search API
+                toolResult = `Web search for "${toolInput.query}" - Please note: web search is currently limited. Consider using search_arxiv for academic papers, or provide search suggestions based on your knowledge.`;
+              } else {
+                toolResult = `Unknown tool: ${toolName}`;
+              }
+            } catch (error) {
+              toolResult = `Tool error: ${error instanceof Error ? error.message : "Unknown error"}`;
+            }
+
+            toolResults.push({
+              type: "tool_result",
+              tool_use_id: block.id,
+              content: toolResult,
+            });
           }
+        }
+
+        // If there were tool uses, add the assistant response and tool results to continue the loop
+        if (hasToolUse && toolResults.length > 0) {
+          messages.push({
+            role: "assistant",
+            content: response.content,
+          });
+          messages.push({
+            role: "user",
+            content: toolResults,
+          });
+        }
+
+        // If stop_reason is "end_turn" or no tool use, we're done
+        if (response.stop_reason === "end_turn" || !hasToolUse) {
+          break;
         }
       }
 

@@ -30,6 +30,10 @@ interface SidePanelProps {
     index?: number;
   } | null;
   currentActionType?: string | null;
+  activeToolUse?: {
+    name: string;
+    input: Record<string, unknown>;
+  } | null;
   onClearResearchChat: () => void;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
@@ -54,6 +58,7 @@ export function SidePanel({
   researchChatStreamingContent,
   matchedReference,
   currentActionType,
+  activeToolUse,
   onClearResearchChat,
   activeTab = "annotations",
   onTabChange,
@@ -119,6 +124,7 @@ export function SidePanel({
             streamingContent={researchChatStreamingContent}
             matchedReference={matchedReference}
             currentActionType={currentActionType}
+            activeToolUse={activeToolUse}
             onClearChat={onClearResearchChat}
           />
         </TabsContent>
