@@ -5,8 +5,14 @@ const SEMANTIC_SCHOLAR_MCP_URL = "https://server.smithery.ai/@hamid-vakilzadeh/m
 
 let mcpClient: Client | null = null;
 let isConnecting = false;
+let connectionFailed = false;
+let availableTools: string[] = [];
 
-export async function getSemanticScholarClient(): Promise<Client> {
+export async function getSemanticScholarClient(): Promise<Client | null> {
+  if (connectionFailed) {
+    return null;
+  }
+
   if (mcpClient) {
     return mcpClient;
   }
@@ -30,34 +36,41 @@ export async function getSemanticScholarClient(): Promise<Client> {
 
     await client.connect(transport);
     mcpClient = client;
+    
+    const toolsResult = await client.listTools();
+    availableTools = toolsResult.tools.map(t => t.name);
     console.log("Connected to Semantic Scholar MCP server");
+    console.log("Available tools:", availableTools);
     
     return client;
   } catch (error) {
     console.error("Failed to connect to Semantic Scholar MCP:", error);
-    throw error;
+    connectionFailed = true;
+    return null;
   } finally {
     isConnecting = false;
   }
 }
 
-export async function listSemanticScholarTools(): Promise<string[]> {
-  try {
-    const client = await getSemanticScholarClient();
-    const result = await client.listTools();
-    return result.tools.map(t => t.name);
-  } catch (error) {
-    console.error("Failed to list tools:", error);
-    return [];
-  }
+export function isMcpAvailable(): boolean {
+  return mcpClient !== null && !connectionFailed;
+}
+
+export function getMcpAvailableTools(): string[] {
+  return availableTools;
 }
 
 export async function callSemanticScholarTool(
   toolName: string, 
   args: Record<string, unknown>
 ): Promise<string> {
+  const client = await getSemanticScholarClient();
+  
+  if (!client) {
+    return `Semantic Scholar search is temporarily unavailable. Please try again later or search manually at https://www.semanticscholar.org/`;
+  }
+
   try {
-    const client = await getSemanticScholarClient();
     const result = await client.callTool({
       name: toolName,
       arguments: args
@@ -73,7 +86,7 @@ export async function callSemanticScholarTool(
     return JSON.stringify(result);
   } catch (error) {
     console.error(`Failed to call tool ${toolName}:`, error);
-    throw error;
+    return `Error searching papers: ${error instanceof Error ? error.message : "Unknown error"}. Try searching manually at https://www.semanticscholar.org/`;
   }
 }
 
@@ -83,8 +96,4 @@ export async function searchPapers(query: string, limit: number = 5): Promise<st
 
 export async function getPaperDetails(paperId: string): Promise<string> {
   return callSemanticScholarTool("get_paper_details", { paper_id: paperId });
-}
-
-export async function getAuthorPapers(authorId: string): Promise<string> {
-  return callSemanticScholarTool("get_author_papers", { author_id: authorId });
 }

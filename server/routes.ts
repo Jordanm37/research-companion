@@ -21,7 +21,7 @@ import {
   type Reference
 } from "@shared/schema";
 import { findReferencesSection, parseReferences, matchCitationToReference } from "./referenceExtractor";
-import { searchPapers, getPaperDetails, getSemanticScholarClient } from "./semanticScholarMcp";
+import { searchPapers, getPaperDetails } from "./semanticScholarMcp";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
