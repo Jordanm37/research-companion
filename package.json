@@ -11,6 +11,7 @@
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.21",
     "@anthropic-ai/sdk": "^0.71.2",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
@@ -84,8 +85,8 @@
     "vaul": "^1.1.2",
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
-    "zod": "^3.25.76",
-    "zod-validation-error": "^3.5.4"
+    "zod": "^4.3.6",
+    "zod-validation-error": "^4.0.2"
   },
   "devDependencies": {
     "@replit/vite-plugin-cartographer": "^0.4.4",
