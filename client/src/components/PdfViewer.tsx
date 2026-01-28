@@ -17,6 +17,12 @@ import type { Annotation, AnnotationType, BoundingBox, ResearchActionType } from
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
+interface PaperItem {
+  id: string;
+  title?: string;
+  filename: string;
+}
+
 interface PdfViewerProps {
   pdfUrl: string | null;
   annotations: Annotation[];
@@ -29,6 +35,8 @@ interface PdfViewerProps {
   highlightAnnotationId: string | null;
   onAnnotationClick: (annotationId: string) => void;
   onResearchAction?: (selectedText: string, actionType: ResearchActionType, customQuery?: string) => void;
+  papers?: PaperItem[];
+  onSelectPaper?: (paperId: string) => void;
 }
 
 type ToolMode = "select" | "highlight" | "rectangle" | "margin_note";
@@ -40,6 +48,8 @@ export function PdfViewer({
   highlightAnnotationId,
   onAnnotationClick,
   onResearchAction,
+  papers = [],
+  onSelectPaper,
 }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -236,14 +246,39 @@ export function PdfViewer({
   if (!pdfUrl) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-muted/30">
-        <div className="text-center p-8">
+        <div className="text-center p-8 max-w-md w-full">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
             <StickyNote className="w-8 h-8 text-muted-foreground" />
           </div>
           <h3 className="text-lg font-medium mb-2" data-testid="text-no-pdf-title">No PDF Loaded</h3>
-          <p className="text-sm text-muted-foreground" data-testid="text-no-pdf-description">
+          <p className="text-sm text-muted-foreground mb-6" data-testid="text-no-pdf-description">
             Upload a PDF to start reading and annotating
           </p>
+          
+          {papers.length > 0 && (
+            <div className="mt-4 text-left">
+              <h4 className="text-sm font-medium mb-3 text-center">Your Papers</h4>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {papers.map((paper) => (
+                  <button
+                    key={paper.id}
+                    onClick={() => onSelectPaper?.(paper.id)}
+                    className="w-full p-3 text-left rounded-md border bg-card hover-elevate transition-colors"
+                    data-testid={`button-paper-${paper.id}`}
+                  >
+                    <div className="font-medium text-sm truncate">
+                      {paper.title || paper.filename}
+                    </div>
+                    {paper.title && paper.title !== paper.filename && (
+                      <div className="text-xs text-muted-foreground truncate mt-1">
+                        {paper.filename}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );

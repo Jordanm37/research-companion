@@ -402,6 +402,11 @@ export default function ReaderPage() {
             highlightAnnotationId={highlightedAnnotationId}
             onAnnotationClick={handleAnnotationClick}
             onResearchAction={handleResearchAction}
+            papers={papers}
+            onSelectPaper={(paperId) => {
+              setActivePaperId(paperId);
+              setSelectedAnnotationIds([]);
+            }}
           />
         </ResizablePanel>
 
