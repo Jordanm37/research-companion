@@ -34,6 +34,8 @@ Research Reader is a web-based PDF annotation and note-taking application design
   - **Summarize Cited Paper**: Get a summary of a highlighted citation's key claims and contributions (now with intelligent citation matching)
   - **Custom Query**: Ask any question about the selected text
 - New **Research** tab in side panel showing conversation history with streaming responses
+- **Follow-up Questions**: Users can send follow-up questions after an initial research action to continue the conversation
+- **Markdown Rendering**: Assistant responses are rendered with proper markdown formatting (headers, lists, code blocks, links) using react-markdown with remark-gfm
 - Uses Anthropic Claude claude-sonnet-4-5 model via Replit AI integrations (billed to credits)
 - **Semantic Scholar MCP Integration**: Uses Smithery-hosted MCP server for real paper search
   - `search_papers` tool searches Semantic Scholar database
