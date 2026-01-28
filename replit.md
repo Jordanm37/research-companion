@@ -6,7 +6,13 @@ Research Reader is a web-based PDF annotation and note-taking application design
 
 ## Recent Changes (January 2026)
 
-### Intelligent Citation Matching (Latest)
+### Database Persistence (Latest)
+- Migrated from in-memory storage to PostgreSQL database using Drizzle ORM
+- Papers, annotations, notes, and chat history now persist across server restarts
+- Uses `@neondatabase/serverless` for database connection
+- Schema defined in `shared/schema.ts` with Drizzle table definitions
+
+### Intelligent Citation Matching
 - **PDF Text Extraction**: When papers are uploaded, full text is extracted using pdf-parse and stored for reference matching
 - **Reference Parsing**: Bibliography/References section is automatically parsed and each reference is extracted with:
   - Index number (for numbered citations like [1], (1))
@@ -56,10 +62,12 @@ Preferred communication style: Simple, everyday language.
 - **AI Integration**: OpenAI API for text analysis and summarization features
 
 ### Data Storage
-- **ORM**: Drizzle ORM with PostgreSQL dialect
-- **Schema Location**: `shared/schema.ts` contains all data models
-- **Storage Pattern**: Currently uses in-memory storage (`MemStorage` class) with interface ready for database migration
-- **Key Entities**: Papers, Annotations, Notes (NoteAtoms), Settings
+- **ORM**: Drizzle ORM with PostgreSQL dialect via Neon serverless
+- **Database Connection**: `server/db.ts` creates Drizzle client using `@neondatabase/serverless`
+- **Schema Location**: `shared/schema.ts` contains Drizzle table definitions and Zod validation schemas
+- **Storage Pattern**: `DatabaseStorage` class in `server/storage.ts` implements all CRUD operations
+- **Key Tables**: `papers`, `annotations`, `note_atoms`, `research_chat_messages`, `settings`
+- **Data Persistence**: All data now persists in PostgreSQL (papers, annotations, notes survive server restarts)
 
 ### Project Structure
 - `client/` - React frontend application

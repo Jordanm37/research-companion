@@ -1,4 +1,85 @@
 import { z } from "zod";
+import { pgTable, text, integer, json, varchar } from "drizzle-orm/pg-core";
+
+// ================================
+// Core Types (defined first for use in tables)
+// ================================
+
+// Bounding box coordinates in page space
+export const boundingBoxSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  width: z.number(),
+  height: z.number(),
+});
+export type BoundingBox = z.infer<typeof boundingBoxSchema>;
+
+// Extracted reference from a paper's bibliography
+export const referenceSchema = z.object({
+  index: z.number(),
+  rawText: z.string(),
+  authors: z.string().optional(),
+  year: z.string().optional(),
+  title: z.string().optional(),
+});
+export type Reference = z.infer<typeof referenceSchema>;
+
+// ================================
+// Drizzle Tables for Database
+// ================================
+
+export const papers = pgTable("papers", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  title: text("title"),
+  authors: json("authors").$type<string[]>(),
+  abstract: text("abstract"),
+  filename: text("filename").notNull(),
+  filePath: text("file_path").notNull().unique(),
+  createdAt: text("created_at").notNull(),
+  extractedText: text("extracted_text"),
+  references: json("references").$type<Reference[]>(),
+});
+
+export const annotations = pgTable("annotations", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  paperId: varchar("paper_id", { length: 36 }).notNull().references(() => papers.id),
+  pageIndex: integer("page_index").notNull(),
+  boundingBox: json("bounding_box").notNull().$type<BoundingBox>(),
+  quotedText: text("quoted_text"),
+  comment: text("comment"),
+  annotationType: text("annotation_type").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
+export const noteAtoms = pgTable("note_atoms", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  paperId: varchar("paper_id", { length: 36 }).notNull().references(() => papers.id),
+  noteType: text("note_type").notNull(),
+  content: text("content").notNull(),
+  linkedAnnotationIds: json("linked_annotation_ids").notNull().$type<string[]>(),
+  outboundLinks: json("outbound_links").notNull().$type<string[]>(),
+  createdAt: text("created_at").notNull(),
+  aiProvenance: text("ai_provenance"),
+});
+
+export const researchChatMessagesTable = pgTable("research_chat_messages", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  paperId: varchar("paper_id", { length: 36 }).notNull().references(() => papers.id),
+  role: text("role").notNull(),
+  content: text("content").notNull(),
+  selectedText: text("selected_text"),
+  actionType: text("action_type"),
+  createdAt: text("created_at").notNull(),
+});
+
+export const settingsTable = pgTable("settings", {
+  id: integer("id").primaryKey().default(1),
+  vaultPath: text("vault_path").notNull().default("/obsidian-vault"),
+});
+
+// ================================
+// Zod Schemas for Validation
+// ================================
 
 // Note type enum
 export const noteTypeEnum = z.enum([
@@ -13,15 +94,6 @@ export const noteTypeEnum = z.enum([
 ]);
 export type NoteType = z.infer<typeof noteTypeEnum>;
 
-// Bounding box coordinates in page space
-export const boundingBoxSchema = z.object({
-  x: z.number(),
-  y: z.number(),
-  width: z.number(),
-  height: z.number(),
-});
-export type BoundingBox = z.infer<typeof boundingBoxSchema>;
-
 // Annotation types
 export const annotationTypeEnum = z.enum([
   "highlight",
@@ -29,16 +101,6 @@ export const annotationTypeEnum = z.enum([
   "rectangle"
 ]);
 export type AnnotationType = z.infer<typeof annotationTypeEnum>;
-
-// Extracted reference from a paper's bibliography
-export const referenceSchema = z.object({
-  index: z.number(),
-  rawText: z.string(),
-  authors: z.string().optional(),
-  year: z.string().optional(),
-  title: z.string().optional(),
-});
-export type Reference = z.infer<typeof referenceSchema>;
 
 // Paper schema
 export const paperSchema = z.object({
