@@ -71,6 +71,18 @@ Please explain this passage to me. What are the key concepts? How does this fit 
       return `I'm reading a research paper and selected this text: "${selectedText}"
 
 My question is: ${customQuery || "Please analyze this text."}`;
+
+    case "paper_summary":
+      return `I'm reading a research paper and highlighted this citation or paper reference: "${selectedText}"
+
+Please provide a summary of this cited paper. Include:
+- The main thesis or key contribution of the paper
+- The methodology or approach used
+- Key findings or claims that are commonly cited
+- How this paper typically relates to other research in the field
+- Any important caveats about the paper's scope or limitations
+
+If you're not certain about specific details, please indicate that and provide what general knowledge you have about this work.`;
     
     default:
       return `Selected text: "${selectedText}"\n\n${customQuery || "Please help me understand this."}`;

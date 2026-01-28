@@ -128,7 +128,8 @@ export const researchActionTypeEnum = z.enum([
   "find_similar",
   "explore_topic",
   "ask_question",
-  "custom_query"
+  "custom_query",
+  "paper_summary"
 ]);
 export type ResearchActionType = z.infer<typeof researchActionTypeEnum>;
 

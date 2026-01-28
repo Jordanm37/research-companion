@@ -5,7 +5,8 @@ import {
   Compass, 
   MessageCircleQuestion, 
   Send,
-  X
+  X,
+  BookOpen
 } from "lucide-react";
 import { useState } from "react";
 import type { ResearchActionType } from "@shared/schema";
@@ -98,6 +99,16 @@ export function SelectionPopup({
           >
             <MessageCircleQuestion className="w-4 h-4" />
             <span>Explain this</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="justify-start gap-2"
+            onClick={() => handleAction("paper_summary")}
+            data-testid="button-paper-summary"
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>Summarize cited paper</span>
           </Button>
           <Button
             variant="ghost"

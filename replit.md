@@ -11,7 +11,8 @@ Research Reader is a web-based PDF annotation and note-taking application design
 - Select text in PDFs to trigger a context popup with AI research actions:
   - **Find Similar Papers**: Get search suggestions for related research
   - **Explore Topic**: Deep dive into concepts and related areas
-  - **Explain**: Get explanations of technical concepts and methodologies  
+  - **Explain**: Get explanations of technical concepts and methodologies
+  - **Summarize Cited Paper**: Get a summary of a highlighted citation's key claims and contributions
   - **Custom Query**: Ask any question about the selected text
 - New **Research** tab in side panel showing conversation history with streaming responses
 - Uses Anthropic Claude claude-sonnet-4-5 model via Replit AI integrations (billed to credits)
