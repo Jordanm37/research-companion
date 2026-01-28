@@ -6,13 +6,26 @@ Research Reader is a web-based PDF annotation and note-taking application design
 
 ## Recent Changes (January 2026)
 
+### Intelligent Citation Matching (Latest)
+- **PDF Text Extraction**: When papers are uploaded, full text is extracted using pdf-parse and stored for reference matching
+- **Reference Parsing**: Bibliography/References section is automatically parsed and each reference is extracted with:
+  - Index number (for numbered citations like [1], (1))
+  - Authors, year, and title (parsed from reference text)
+  - Full raw reference text
+- **Citation Matching**: When using "Summarize Cited Paper" action, selected text is matched against stored references:
+  - Supports numbered citations: [1], (1), 1.
+  - Supports author-year: "Smith, 2023", "Smith et al., 2020"
+  - Falls back to first author name matching
+- **Enhanced AI Prompts**: Matched reference information is included in the Claude prompt for more accurate paper summaries
+- **UI Feedback**: Research Chat shows matched reference details (title, authors, year) before AI response, or indicates if no match was found
+
 ### AI Research Assistant Feature
 - Added Claude-powered research assistant for paper analysis
 - Select text in PDFs to trigger a context popup with AI research actions:
   - **Find Similar Papers**: Get search suggestions for related research
   - **Explore Topic**: Deep dive into concepts and related areas
   - **Explain**: Get explanations of technical concepts and methodologies
-  - **Summarize Cited Paper**: Get a summary of a highlighted citation's key claims and contributions
+  - **Summarize Cited Paper**: Get a summary of a highlighted citation's key claims and contributions (now with intelligent citation matching)
   - **Custom Query**: Ask any question about the selected text
 - New **Research** tab in side panel showing conversation history with streaming responses
 - Uses Anthropic Claude claude-sonnet-4-5 model via Replit AI integrations (billed to credits)
@@ -72,6 +85,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Third-Party Libraries
 - **pdf.js**: Client-side PDF rendering from Mozilla
+- **pdf-parse**: Server-side PDF text extraction for reference parsing
 - **Radix UI**: Accessible component primitives for the UI
 - **TanStack Query**: Async state management and caching
 - **Zod**: Runtime schema validation shared between client and server
