@@ -26,6 +26,14 @@ export default function ReaderPage() {
   const [activeTab, setActiveTab] = useState("annotations");
   const [isResearchChatLoading, setIsResearchChatLoading] = useState(false);
   const [researchChatStreamingContent, setResearchChatStreamingContent] = useState("");
+  const [currentActionType, setCurrentActionType] = useState<ResearchActionType | null>(null);
+  const [matchedReference, setMatchedReference] = useState<{
+    rawText: string;
+    authors?: string;
+    year?: string;
+    title?: string;
+    index?: number;
+  } | null>(null);
   const [vaultPath, setVaultPath] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("vaultPath") || "/obsidian-vault";
@@ -275,6 +283,8 @@ export default function ReaderPage() {
     setActiveTab("research");
     setIsResearchChatLoading(true);
     setResearchChatStreamingContent("");
+    setCurrentActionType(actionType);
+    setMatchedReference(null);
 
     try {
       const response = await fetch(`/api/papers/${activePaperId}/research-chat`, {
@@ -308,12 +318,17 @@ export default function ReaderPage() {
           if (line.startsWith("data: ")) {
             try {
               const data = JSON.parse(line.slice(6));
+              if (data.matchedReference !== undefined) {
+                setMatchedReference(data.matchedReference);
+              }
               if (data.content) {
                 fullContent += data.content;
                 setResearchChatStreamingContent(fullContent);
               }
               if (data.done) {
                 setResearchChatStreamingContent("");
+                setMatchedReference(null);
+                setCurrentActionType(null);
                 queryClient.invalidateQueries({ 
                   queryKey: ["/api/papers", activePaperId, "research-chat"] 
                 });
@@ -400,6 +415,8 @@ export default function ReaderPage() {
             researchChatMessages={researchChatMessages}
             isResearchChatLoading={isResearchChatLoading}
             researchChatStreamingContent={researchChatStreamingContent}
+            matchedReference={matchedReference}
+            currentActionType={currentActionType}
             onClearResearchChat={handleClearResearchChat}
             activeTab={activeTab}
             onTabChange={setActiveTab}

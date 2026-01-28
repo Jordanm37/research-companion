@@ -1,14 +1,24 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Trash2, MessageSquare, Bot, User } from "lucide-react";
+import { Loader2, Trash2, MessageSquare, Bot, User, BookOpen } from "lucide-react";
 import type { ResearchChatMessage } from "@shared/schema";
+
+interface MatchedReference {
+  rawText: string;
+  authors?: string;
+  year?: string;
+  title?: string;
+  index?: number;
+}
 
 interface ResearchChatProps {
   paperId: string | null;
   messages: ResearchChatMessage[];
   isLoading: boolean;
   streamingContent: string;
+  matchedReference?: MatchedReference | null;
+  currentActionType?: string | null;
   onClearChat: () => void;
 }
 
@@ -17,6 +27,8 @@ export function ResearchChat({
   messages,
   isLoading,
   streamingContent,
+  matchedReference,
+  currentActionType,
   onClearChat,
 }: ResearchChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -124,6 +136,34 @@ export function ResearchChat({
                 <Bot className="w-3.5 h-3.5 text-primary" />
               </div>
               <div className="rounded-lg p-2.5 max-w-[85%] text-sm bg-muted">
+                {currentActionType === "paper_summary" && matchedReference && (
+                  <div className="mb-2 p-2 bg-background/50 rounded border text-xs" data-testid="matched-reference">
+                    <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                      <BookOpen className="w-3 h-3" />
+                      <span className="font-medium">Matched Reference</span>
+                    </div>
+                    {matchedReference.title && (
+                      <div className="font-medium text-foreground">{matchedReference.title}</div>
+                    )}
+                    {matchedReference.authors && (
+                      <div className="text-muted-foreground">{matchedReference.authors}</div>
+                    )}
+                    {matchedReference.year && (
+                      <div className="text-muted-foreground">{matchedReference.year}</div>
+                    )}
+                    {!matchedReference.title && !matchedReference.authors && (
+                      <div className="text-muted-foreground italic line-clamp-2">{matchedReference.rawText}</div>
+                    )}
+                  </div>
+                )}
+                {currentActionType === "paper_summary" && matchedReference === null && isLoading && !streamingContent && (
+                  <div className="mb-2 p-2 bg-background/50 rounded border text-xs text-muted-foreground" data-testid="no-matched-reference">
+                    <div className="flex items-center gap-1.5">
+                      <BookOpen className="w-3 h-3" />
+                      <span>No matching reference found in bibliography</span>
+                    </div>
+                  </div>
+                )}
                 {streamingContent ? (
                   <div className="whitespace-pre-wrap break-words">
                     {streamingContent}

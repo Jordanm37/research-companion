@@ -22,6 +22,14 @@ interface SidePanelProps {
   researchChatMessages: ResearchChatMessage[];
   isResearchChatLoading: boolean;
   researchChatStreamingContent: string;
+  matchedReference?: {
+    rawText: string;
+    authors?: string;
+    year?: string;
+    title?: string;
+    index?: number;
+  } | null;
+  currentActionType?: string | null;
   onClearResearchChat: () => void;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
@@ -44,6 +52,8 @@ export function SidePanel({
   researchChatMessages,
   isResearchChatLoading,
   researchChatStreamingContent,
+  matchedReference,
+  currentActionType,
   onClearResearchChat,
   activeTab = "annotations",
   onTabChange,
@@ -107,6 +117,8 @@ export function SidePanel({
             messages={researchChatMessages}
             isLoading={isResearchChatLoading}
             streamingContent={researchChatStreamingContent}
+            matchedReference={matchedReference}
+            currentActionType={currentActionType}
             onClearChat={onClearResearchChat}
           />
         </TabsContent>

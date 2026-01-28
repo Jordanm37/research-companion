@@ -697,6 +697,19 @@ export async function registerRoutes(
       res.setHeader("Cache-Control", "no-cache");
       res.setHeader("Connection", "keep-alive");
 
+      // Send matched reference info first if available
+      if (actionType === "paper_summary") {
+        res.write(`data: ${JSON.stringify({ 
+          matchedReference: matchedReference ? {
+            rawText: matchedReference.rawText,
+            authors: matchedReference.authors,
+            year: matchedReference.year,
+            title: matchedReference.title,
+            index: matchedReference.index,
+          } : null
+        })}\n\n`);
+      }
+
       // Stream response from Anthropic
       const stream = anthropic.messages.stream({
         model: "claude-sonnet-4-5",
