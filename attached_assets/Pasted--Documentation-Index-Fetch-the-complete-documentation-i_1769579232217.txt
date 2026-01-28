@@ -1,0 +1,237 @@
+> ## Documentation Index
+> Fetch the complete documentation index at: https://smithery.ai/docs/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Connect to MCPs
+
+> Learn how to connect to MCP servers on Smithery.
+
+Smithery simplifies MCP integration by hosting servers and handling authentication UI automatically. This guide shows how you can build an MCP Client to connect to any server with just a URL - no infrastructure to manage, no secrets to juggle.
+
+<video controls autoPlay muted loop playsInline className="w-full aspect-video rounded-xl" src="https://mintcdn.com/smithery/VM0SEWDjb0U0Bzut/videos/oauth-example.mp4?fit=max&auto=format&n=VM0SEWDjb0U0Bzut&q=85&s=fad2fef373fd8f62ab043bdde440d697" data-path="videos/oauth-example.mp4" />
+
+## Prerequisites
+
+* `@modelcontextprotocol/sdk` version ^1.15.1 or higher
+* Node.js version 18 or higher
+
+## Server URLs
+
+Every MCP server on Smithery has a unique URL that you use to connect:
+
+```
+https://server.smithery.ai/{serverName}
+```
+
+### Finding Server URLs
+
+1. Browse servers at [smithery.ai](https://smithery.ai) or query our [Registry API](/concepts/registry_search_servers)
+2. Visit any server page
+3. Copy the server URL from the page
+
+### Example URLs
+
+* **Notion**: `https://server.smithery.ai/@smithery/notion`
+* **Exa**: `https://server.smithery.ai/exa`
+
+## Connection Overview
+
+Here's how you can connect to a Smithery server.
+
+```typescript  theme={null}
+import { Client } from "@modelcontextprotocol/sdk/client/index.js"
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
+
+// Create an auth provider (see implementation below)
+const authProvider = new YourAuthProvider()
+
+// Connect with the auth provider
+const transport = new StreamableHTTPClientTransport(
+  "https://server.smithery.ai/exa",
+  { authProvider }
+)
+
+const client = new Client({
+  name: "my-ai-client",
+  version: "1.0.0"
+})
+
+await client.connect(transport)
+
+// Use the server
+const result = await client.listTools()
+```
+
+## Authentication Flow
+
+Smithery servers follow the [MCP Authorization Specification](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization). When connecting to a Smithery server, authentication happens automatically:
+
+1. **First Connection**: Your app attempts to connect to the server
+2. **Authentication Required**: If not authenticated, the server responds with spec-compliant metadata to direct your app to handle user login
+3. **User Login**: Your app redirects users to Smithery where they:
+   * Sign in or create an account (one-time)
+   * Configure the server if needed (API keys, settings)
+   * Authorize your application
+4. **Token Exchange**: Smithery provides tokens back to your app
+5. **Connected**: Your app can now reconnect and use the MCP server
+
+This entire flow is handled by the MCP SDK - you just need to implement an authentication provider.
+
+## Implementing an OAuth Provider
+
+The OAuth provider is an interface that tells the MCP SDK how your application handles authentication. It's not specific to Smithery - it's about how your client manages the OAuth flow, token storage, and user redirects.
+
+Here's a complete, minimal implementation you can copy and adapt. For a more comprehensive example with interactive CLI features, see the [MCP SDK's example](https://github.com/modelcontextprotocol/typescript-sdk/blob/main/src/examples/client/simpleOAuthClient.ts).
+
+### Browser Applications
+
+```typescript  theme={null}
+import type { OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js"
+import type { 
+  OAuthClientInformation,
+  OAuthClientMetadata,
+  OAuthTokens 
+} from "@modelcontextprotocol/sdk/shared/auth.js"
+
+class BrowserOAuthProvider implements OAuthClientProvider {
+  private _tokens?: OAuthTokens
+  private _clientInfo?: OAuthClientInformation
+  private _codeVerifier?: string
+
+  constructor(
+    private serverUrl: string,
+    private clientName = "My MCP Client"
+  ) {}
+
+  get redirectUrl(): string {
+    return `${window.location.origin}/oauth/callback`
+  }
+
+  get clientMetadata(): OAuthClientMetadata {
+    return {
+      client_name: this.clientName,
+      client_uri: window.location.origin,
+      redirect_uris: [this.redirectUrl],
+      grant_types: ["authorization_code", "refresh_token"],
+      response_types: ["code"],
+      scope: "read write",
+      token_endpoint_auth_method: "none"
+    }
+  }
+
+  clientInformation(): OAuthClientInformation | undefined {
+    return this._clientInfo
+  }
+
+  async saveClientInformation(info: OAuthClientInformation): Promise<void> {
+    this._clientInfo = info
+  }
+
+  tokens(): OAuthTokens | undefined {
+    return this._tokens
+  }
+
+  async saveTokens(tokens: OAuthTokens): Promise<void> {
+    this._tokens = tokens
+    // Persist to localStorage for reuse across page reloads
+    localStorage.setItem(
+      `mcp_tokens_${this.serverUrl}`,
+      JSON.stringify(tokens)
+    )
+  }
+
+  async redirectToAuthorization(url: URL): Promise<void> {
+    window.location.href = url.toString()
+  }
+
+  async saveCodeVerifier(verifier: string): Promise<void> {
+    this._codeVerifier = verifier
+  }
+
+  async codeVerifier(): Promise<string> {
+    if (!this._codeVerifier) throw new Error("No code verifier stored")
+    return this._codeVerifier
+  }
+}
+```
+
+#### Callback Handler
+
+You'll need to implement a callback page at `/oauth/callback` to handle the OAuth response. This page should:
+
+1. Extract the authorization code from URL parameters
+2. Pass it back to your MCP client
+3. Show success/error status to the user
+
+Here's a basic example:
+
+```typescript  theme={null}
+// pages/oauth/callback.tsx or similar
+export default function OAuthCallback() {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')
+    const error = params.get('error')
+
+    if (code) {
+      // Store the authorization code
+      sessionStorage.setItem('oauth_code', code)
+      // Redirect back to your app
+      window.location.href = '/'
+    } else if (error) {
+      // Handle error - show message or redirect with error
+      console.error('OAuth error:', error)
+      window.location.href = '/?error=auth_failed'
+    }
+  }, [])
+
+  return <div>Completing authentication...</div>
+}
+```
+
+Then in your main application, check for the stored authorization code:
+
+```typescript  theme={null}
+// In your main app
+const storedCode = sessionStorage.getItem('oauth_code')
+if (storedCode) {
+  // Complete the OAuth flow
+  sessionStorage.removeItem('oauth_code')
+  await transport.finishAuth(storedCode)
+  // Now reconnect
+  await client.connect(transport)
+}
+```
+
+For a complete implementation with proper error handling and user feedback, see the [MCP SDK example](https://github.com/modelcontextprotocol/typescript-sdk/blob/main/src/examples/client/simpleOAuthClient.ts).
+
+## Token Persistence
+
+After successful authentication, your application receives tokens that should be persisted for future connections. This prevents users from having to log in repeatedly.
+
+**Important considerations:**
+
+* Store tokens securely (encrypted storage preferred)
+* Tokens expire and need refresh handling
+* Different storage strategies for browser vs server environments
+* Each server URL requires its own set of tokens
+
+The authentication provider you implement is responsible for token storage and retrieval. The MCP SDK will automatically use these tokens for reconnection and handle token refresh when needed.
+
+## Programmatic Access
+
+If you're building a backend service that needs to connect to Smithery-hosted MCP servers without interactive user flows, you can obtain a bearer token through a one-time OAuth flow and reuse it for subsequent requests.
+
+1. **Complete the OAuth flow once** using MCP SDK to authenticate and authorize
+2. **Store the tokens** securely in your backend (e.g., environment variables or secrets manager)
+3. **Reuse the tokens** - refresh tokens for non-OAuth MCP servers won't expire, enabling long-lived access. You can load this using MCP's OAuthClientProvider.
+
+<Note>
+  We're evaluating building a more convenient way to generate tokens for programmatic access.
+  [Join our Discord](https://discord.gg/Afd38S5p9A) to share your feedback!
+</Note>
+
+## Next Steps
+
+* Browse available servers at [smithery.ai](https://smithery.ai)
+* Explore the [Registry API](/concepts/registry_search_servers) for programmatic server discovery

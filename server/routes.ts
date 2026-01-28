@@ -21,7 +21,7 @@ import {
   type Reference
 } from "@shared/schema";
 import { findReferencesSection, parseReferences, matchCitationToReference } from "./referenceExtractor";
-import { arxivToolDefinition, executeArxivTool } from "./arxivTool";
+import { searchPapers, getPaperDetails, getSemanticScholarClient } from "./semanticScholarMcp";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -37,24 +37,23 @@ function getResearchSystemPrompt(): string {
   return `You are a helpful research assistant with access to real-time tools for academic research.
 
 YOUR TOOLS:
-1. **search_arxiv** - Search arXiv for papers by title, author, topic, or arXiv ID. Use this to find actual papers with links.
-2. **web_search** - Search the web for broader research information, blogs, tutorials, and news.
+1. **search_papers** - Search Semantic Scholar for academic papers by title, author, or topic. Returns paper titles, authors, abstracts, citation counts, and Semantic Scholar links.
+2. **get_paper_details** - Get detailed information about a specific paper by its Semantic Scholar ID.
 
 Your role is to:
 - Find and link to real academic papers using your search tools
 - Help researchers explore topics and find related work
 - Explain concepts and methodologies
-- ALWAYS use search_arxiv when asked about papers or citations - provide real links
+- ALWAYS use search_papers when asked about papers or citations - provide real links
 
 Important guidelines:
 - When asked about a paper or citation, SEARCH for it to get real information and links
-- Always include arXiv links (https://arxiv.org/abs/...) when you find papers
-- Use web_search for broader context or when arXiv doesn't have what's needed
+- Always include Semantic Scholar links when you find papers
 - Be honest about what you find vs what you couldn't find
 - Synthesize search results into helpful responses
 
 Format your responses clearly with:
-- Links to papers (always include the arXiv link when available)
+- Links to papers (always include the Semantic Scholar link when available)
 - Bullet points for lists
 - Bold text for key terms (**term**)`;
 }
@@ -664,7 +663,7 @@ export async function registerRoutes(
 
       const parseResult = researchChatRequestSchema.safeParse(req.body);
       if (!parseResult.success) {
-        return res.status(400).json({ error: "Invalid request", details: parseResult.error.errors });
+        return res.status(400).json({ error: "Invalid request", details: parseResult.error.issues });
       }
 
       const { query, selectedText, actionType } = parseResult.data;
@@ -715,21 +714,38 @@ export async function registerRoutes(
         })}\n\n`);
       }
 
-      // Define tools
+      // Define tools for Semantic Scholar MCP
       const tools: Anthropic.Tool[] = [
-        arxivToolDefinition,
         {
-          name: "web_search",
-          description: "Search the web for information. Use for broader research context, news, tutorials, or when arXiv doesn't have what's needed.",
+          name: "search_papers",
+          description: "Search Semantic Scholar for academic papers. Returns paper titles, authors, abstracts, citation counts, and links.",
           input_schema: {
             type: "object",
             properties: {
               query: {
                 type: "string",
-                description: "Search query"
+                description: "Search query - can include paper titles, author names, or topics"
+              },
+              limit: {
+                type: "number",
+                description: "Maximum number of results to return (default: 5)"
               }
             },
             required: ["query"]
+          }
+        },
+        {
+          name: "get_paper_details",
+          description: "Get detailed information about a specific paper by its Semantic Scholar ID.",
+          input_schema: {
+            type: "object",
+            properties: {
+              paper_id: {
+                type: "string",
+                description: "Semantic Scholar paper ID"
+              }
+            },
+            required: ["paper_id"]
           }
         }
       ];
@@ -772,15 +788,16 @@ export async function registerRoutes(
 
             console.log(`Executing tool: ${toolName}`, toolInput);
 
-            // Execute the tool
+            // Execute the tool via Semantic Scholar MCP
             let toolResult: string;
             try {
-              if (toolName === "search_arxiv") {
-                toolResult = await executeArxivTool(toolInput as { query: string; max_results?: number });
-              } else if (toolName === "web_search") {
-                // For web_search, we'll use a simple message since we don't have the built-in tool
-                // In a production setup, you'd integrate with a search API
-                toolResult = `Web search for "${toolInput.query}" - Please note: web search is currently limited. Consider using search_arxiv for academic papers, or provide search suggestions based on your knowledge.`;
+              if (toolName === "search_papers") {
+                toolResult = await searchPapers(
+                  toolInput.query as string, 
+                  (toolInput.limit as number) || 5
+                );
+              } else if (toolName === "get_paper_details") {
+                toolResult = await getPaperDetails(toolInput.paper_id as string);
               } else {
                 toolResult = `Unknown tool: ${toolName}`;
               }

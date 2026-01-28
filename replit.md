@@ -29,6 +29,10 @@ Research Reader is a web-based PDF annotation and note-taking application design
   - **Custom Query**: Ask any question about the selected text
 - New **Research** tab in side panel showing conversation history with streaming responses
 - Uses Anthropic Claude claude-sonnet-4-5 model via Replit AI integrations (billed to credits)
+- **Semantic Scholar MCP Integration**: Uses Smithery-hosted MCP server for real paper search
+  - `search_papers` tool searches Semantic Scholar database
+  - `get_paper_details` tool retrieves detailed paper information
+  - Connected via `@modelcontextprotocol/sdk` to `https://server.smithery.ai/@hamid-vakilzadeh/mcpsemanticscholar`
 
 ## User Preferences
 
@@ -88,4 +92,6 @@ Preferred communication style: Simple, everyday language.
 - **pdf-parse**: Server-side PDF text extraction for reference parsing
 - **Radix UI**: Accessible component primitives for the UI
 - **TanStack Query**: Async state management and caching
-- **Zod**: Runtime schema validation shared between client and server
+- **Zod v4**: Runtime schema validation shared between client and server
+- **@modelcontextprotocol/sdk**: MCP client for connecting to Smithery-hosted servers
+- **@anthropic-ai/claude-agent-sdk**: Claude Agent SDK for agentic workflows

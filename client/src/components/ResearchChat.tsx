@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Trash2, MessageSquare, Bot, User, BookOpen, Search, Globe } from "lucide-react";
+import { Loader2, Trash2, MessageSquare, Bot, User, BookOpen, Search } from "lucide-react";
 import type { ResearchChatMessage } from "@shared/schema";
 
 interface MatchedReference {
@@ -174,18 +174,22 @@ export function ResearchChat({
                 {activeToolUse && (
                   <div className="mb-2 p-2 bg-primary/5 rounded border border-primary/20 text-xs" data-testid="active-tool-use">
                     <div className="flex items-center gap-1.5 text-primary mb-1">
-                      {activeToolUse.name === "search_arxiv" ? (
-                        <Search className="w-3 h-3" />
-                      ) : (
-                        <Globe className="w-3 h-3" />
-                      )}
+                      <Search className="w-3 h-3" />
                       <span className="font-medium">
-                        {activeToolUse.name === "search_arxiv" ? "Searching arXiv..." : "Searching the web..."}
+                        {activeToolUse.name === "search_papers" 
+                          ? "Searching Semantic Scholar..." 
+                          : activeToolUse.name === "get_paper_details"
+                          ? "Getting paper details..."
+                          : "Searching..."}
                       </span>
                       <Loader2 className="w-3 h-3 animate-spin ml-auto" />
                     </div>
                     <div className="text-muted-foreground truncate">
-                      Query: {String(activeToolUse.input.query || "")}
+                      {activeToolUse.input.query 
+                        ? `Query: ${String(activeToolUse.input.query)}` 
+                        : activeToolUse.input.paper_id 
+                        ? `Paper ID: ${String(activeToolUse.input.paper_id)}`
+                        : ""}
                     </div>
                   </div>
                 )}
