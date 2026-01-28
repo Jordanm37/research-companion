@@ -1,8 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AnnotationsList } from "./AnnotationsList";
 import { NotesList } from "./NotesList";
-import { MessageSquareText, FileText } from "lucide-react";
-import type { Annotation, NoteAtom, NoteType, AIActionType } from "@shared/schema";
+import { ResearchChat } from "./ResearchChat";
+import { MessageSquareText, FileText, Bot } from "lucide-react";
+import type { Annotation, NoteAtom, NoteType, AIActionType, ResearchChatMessage } from "@shared/schema";
 
 interface SidePanelProps {
   annotations: Annotation[];
@@ -17,6 +18,13 @@ interface SidePanelProps {
   onDeleteNote: (id: string) => void;
   onAIAction: (actionType: AIActionType, annotationIds: string[], noteIds: string[]) => Promise<string>;
   isAILoading: boolean;
+  paperId: string | null;
+  researchChatMessages: ResearchChatMessage[];
+  isResearchChatLoading: boolean;
+  researchChatStreamingContent: string;
+  onClearResearchChat: () => void;
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
 export function SidePanel({
@@ -32,11 +40,18 @@ export function SidePanel({
   onDeleteNote,
   onAIAction,
   isAILoading,
+  paperId,
+  researchChatMessages,
+  isResearchChatLoading,
+  researchChatStreamingContent,
+  onClearResearchChat,
+  activeTab = "annotations",
+  onTabChange,
 }: SidePanelProps) {
   return (
     <div className="h-full flex flex-col bg-card border-l">
-      <Tabs defaultValue="annotations" className="flex flex-col h-full">
-        <TabsList className="grid w-full grid-cols-2 rounded-none border-b h-auto p-0">
+      <Tabs value={activeTab} onValueChange={onTabChange} className="flex flex-col h-full">
+        <TabsList className="grid w-full grid-cols-3 rounded-none border-b h-auto p-0">
           <TabsTrigger 
             value="annotations" 
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary py-3"
@@ -52,6 +67,14 @@ export function SidePanel({
           >
             <FileText className="w-4 h-4 mr-2" />
             Notes
+          </TabsTrigger>
+          <TabsTrigger 
+            value="research" 
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary py-3"
+            data-testid="tab-research"
+          >
+            <Bot className="w-4 h-4 mr-2" />
+            Research
           </TabsTrigger>
         </TabsList>
 
@@ -75,6 +98,16 @@ export function SidePanel({
             onDeleteNote={onDeleteNote}
             onAIAction={onAIAction}
             isAILoading={isAILoading}
+          />
+        </TabsContent>
+
+        <TabsContent value="research" className="flex-1 m-0 overflow-hidden">
+          <ResearchChat
+            paperId={paperId}
+            messages={researchChatMessages}
+            isLoading={isResearchChatLoading}
+            streamingContent={researchChatStreamingContent}
+            onClearChat={onClearResearchChat}
           />
         </TabsContent>
       </Tabs>

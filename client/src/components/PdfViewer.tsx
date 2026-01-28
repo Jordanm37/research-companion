@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SelectionPopup } from "./SelectionPopup";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -12,7 +12,7 @@ import {
   StickyNote,
   Loader2
 } from "lucide-react";
-import type { Annotation, AnnotationType, BoundingBox } from "@shared/schema";
+import type { Annotation, AnnotationType, BoundingBox, ResearchActionType } from "@shared/schema";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
@@ -27,6 +27,7 @@ interface PdfViewerProps {
   ) => void;
   highlightAnnotationId: string | null;
   onAnnotationClick: (annotationId: string) => void;
+  onResearchAction?: (selectedText: string, actionType: ResearchActionType, customQuery?: string) => void;
 }
 
 type ToolMode = "select" | "highlight" | "rectangle" | "margin_note";
@@ -37,6 +38,7 @@ export function PdfViewer({
   onCreateAnnotation,
   highlightAnnotationId,
   onAnnotationClick,
+  onResearchAction,
 }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -52,6 +54,10 @@ export function PdfViewer({
   const [selectionStart, setSelectionStart] = useState<{ x: number; y: number } | null>(null);
   const [selectionRect, setSelectionRect] = useState<BoundingBox | null>(null);
   const [pageViewport, setPageViewport] = useState<{ width: number; height: number } | null>(null);
+  const [selectionPopup, setSelectionPopup] = useState<{
+    text: string;
+    position: { x: number; y: number };
+  } | null>(null);
 
   useEffect(() => {
     if (!pdfUrl) return;
@@ -90,7 +96,8 @@ export function PdfViewer({
     await page.render({
       canvasContext: context,
       viewport: viewport,
-    }).promise;
+      canvas: canvas,
+    } as any).promise;
 
     const textLayer = textLayerRef.current;
     textLayer.innerHTML = "";
@@ -192,26 +199,35 @@ export function PdfViewer({
     if (toolMode !== "select") return;
 
     const selection = window.getSelection();
-    if (!selection || selection.isCollapsed) return;
+    if (!selection || selection.isCollapsed) {
+      return;
+    }
 
     const text = selection.toString().trim();
-    if (!text) return;
+    if (!text || text.length < 3) return;
 
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
-    const containerRect = canvasRef.current?.getBoundingClientRect();
 
-    if (!containerRect || !pageViewport) return;
+    setSelectionPopup({
+      text,
+      position: {
+        x: rect.left + rect.width / 2,
+        y: rect.bottom + 10,
+      },
+    });
+  };
 
-    const normalizedBox: BoundingBox = {
-      x: (rect.left - containerRect.left) / pageViewport.width,
-      y: (rect.top - containerRect.top) / pageViewport.height,
-      width: rect.width / pageViewport.width,
-      height: rect.height / pageViewport.height,
-    };
+  const handleResearchAction = (actionType: ResearchActionType, customQuery?: string) => {
+    if (selectionPopup && onResearchAction) {
+      onResearchAction(selectionPopup.text, actionType, customQuery);
+      window.getSelection()?.removeAllRanges();
+    }
+  };
 
-    onCreateAnnotation(currentPage - 1, normalizedBox, "highlight", text);
-    selection.removeAllRanges();
+  const handleClosePopup = () => {
+    setSelectionPopup(null);
+    window.getSelection()?.removeAllRanges();
   };
 
   const pageAnnotations = annotations.filter((a) => a.pageIndex === currentPage - 1);
@@ -394,6 +410,15 @@ export function PdfViewer({
           </div>
         </div>
       </div>
+
+      {selectionPopup && onResearchAction && (
+        <SelectionPopup
+          selectedText={selectionPopup.text}
+          position={selectionPopup.position}
+          onAction={handleResearchAction}
+          onClose={handleClosePopup}
+        />
+      )}
     </div>
   );
 }

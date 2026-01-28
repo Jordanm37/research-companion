@@ -190,11 +190,13 @@ export class MemStorage implements IStorage {
   }
 
   async clearResearchChatMessages(paperId: string): Promise<void> {
-    for (const [id, msg] of this.researchChatMessages.entries()) {
+    const idsToDelete: string[] = [];
+    this.researchChatMessages.forEach((msg, id) => {
       if (msg.paperId === paperId) {
-        this.researchChatMessages.delete(id);
+        idsToDelete.push(id);
       }
-    }
+    });
+    idsToDelete.forEach(id => this.researchChatMessages.delete(id));
   }
 }
 
