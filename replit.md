@@ -9,7 +9,7 @@ Research Reader is a web-based PDF annotation and note-taking application design
 ### Database Persistence (Latest)
 - Migrated from in-memory storage to PostgreSQL database using Drizzle ORM
 - Papers, annotations, notes, and chat history now persist across server restarts
-- Uses `@neondatabase/serverless` for database connection
+- Uses `pg` (node-postgres) for database connection
 - Schema defined in `shared/schema.ts` with Drizzle table definitions
 
 ### Intelligent Citation Matching
@@ -62,8 +62,8 @@ Preferred communication style: Simple, everyday language.
 - **AI Integration**: OpenAI API for text analysis and summarization features
 
 ### Data Storage
-- **ORM**: Drizzle ORM with PostgreSQL dialect via Neon serverless
-- **Database Connection**: `server/db.ts` creates Drizzle client using `@neondatabase/serverless`
+- **ORM**: Drizzle ORM with PostgreSQL dialect
+- **Database Connection**: `server/db.ts` creates Drizzle client using `pg` (node-postgres)
 - **Schema Location**: `shared/schema.ts` contains Drizzle table definitions and Zod validation schemas
 - **Storage Pattern**: `DatabaseStorage` class in `server/storage.ts` implements all CRUD operations
 - **Key Tables**: `papers`, `annotations`, `note_atoms`, `research_chat_messages`, `settings`
