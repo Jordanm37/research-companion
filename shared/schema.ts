@@ -123,6 +123,38 @@ export const settingsSchema = z.object({
 });
 export type Settings = z.infer<typeof settingsSchema>;
 
+// Research chat action types
+export const researchActionTypeEnum = z.enum([
+  "find_similar",
+  "explore_topic",
+  "ask_question",
+  "custom_query"
+]);
+export type ResearchActionType = z.infer<typeof researchActionTypeEnum>;
+
+// Research chat message schema
+export const researchChatMessageSchema = z.object({
+  id: z.string(),
+  paperId: z.string(),
+  role: z.enum(["user", "assistant"]),
+  content: z.string(),
+  selectedText: z.string().optional(),
+  actionType: researchActionTypeEnum.optional(),
+  createdAt: z.string(),
+});
+export type ResearchChatMessage = z.infer<typeof researchChatMessageSchema>;
+
+export const insertResearchChatMessageSchema = researchChatMessageSchema.omit({ id: true, createdAt: true });
+export type InsertResearchChatMessage = z.infer<typeof insertResearchChatMessageSchema>;
+
+// Research chat request schema
+export const researchChatRequestSchema = z.object({
+  query: z.string(),
+  selectedText: z.string(),
+  actionType: researchActionTypeEnum,
+});
+export type ResearchChatRequest = z.infer<typeof researchChatRequestSchema>;
+
 // Legacy user types for compatibility
 export const users = { $inferSelect: {} as { id: string; username: string; password: string } };
 export type User = typeof users.$inferSelect;

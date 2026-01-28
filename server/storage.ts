@@ -7,7 +7,9 @@ import {
   type NoteAtom,
   type InsertNoteAtom,
   type UpdateNoteAtom,
-  type Settings
+  type Settings,
+  type ResearchChatMessage,
+  type InsertResearchChatMessage
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -34,6 +36,11 @@ export interface IStorage {
   // Settings
   getSettings(): Promise<Settings>;
   updateSettings(settings: Partial<Settings>): Promise<Settings>;
+  
+  // Research Chat
+  getResearchChatMessages(paperId: string): Promise<ResearchChatMessage[]>;
+  createResearchChatMessage(message: InsertResearchChatMessage): Promise<ResearchChatMessage>;
+  clearResearchChatMessages(paperId: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -41,12 +48,14 @@ export class MemStorage implements IStorage {
   private annotations: Map<string, Annotation>;
   private notes: Map<string, NoteAtom>;
   private settings: Settings;
+  private researchChatMessages: Map<string, ResearchChatMessage>;
 
   constructor() {
     this.papers = new Map();
     this.annotations = new Map();
     this.notes = new Map();
     this.settings = { vaultPath: "/obsidian-vault" };
+    this.researchChatMessages = new Map();
   }
 
   // Papers
@@ -159,6 +168,33 @@ export class MemStorage implements IStorage {
   async updateSettings(updates: Partial<Settings>): Promise<Settings> {
     this.settings = { ...this.settings, ...updates };
     return this.settings;
+  }
+
+  // Research Chat
+  async getResearchChatMessages(paperId: string): Promise<ResearchChatMessage[]> {
+    return Array.from(this.researchChatMessages.values())
+      .filter(m => m.paperId === paperId)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }
+
+  async createResearchChatMessage(message: InsertResearchChatMessage): Promise<ResearchChatMessage> {
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    const newMessage: ResearchChatMessage = {
+      id,
+      ...message,
+      createdAt: now,
+    };
+    this.researchChatMessages.set(id, newMessage);
+    return newMessage;
+  }
+
+  async clearResearchChatMessages(paperId: string): Promise<void> {
+    for (const [id, msg] of this.researchChatMessages.entries()) {
+      if (msg.paperId === paperId) {
+        this.researchChatMessages.delete(id);
+      }
+    }
   }
 }
 

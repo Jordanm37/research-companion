@@ -6,19 +6,76 @@ import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { 
   insertAnnotationSchema, 
   updateAnnotationSchema,
   insertNoteAtomSchema,
   updateNoteAtomSchema,
   aiRequestSchema,
-  exportRequestSchema
+  exportRequestSchema,
+  researchChatRequestSchema,
+  type ResearchActionType
 } from "@shared/schema";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
+
+const anthropic = new Anthropic({
+  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+});
+
+function getResearchSystemPrompt(): string {
+  return `You are a helpful research assistant specialized in academic literature and paper discovery. 
+
+Your role is to:
+- Help researchers find related papers and explore research topics
+- Suggest search queries and keywords for academic databases (Google Scholar, Semantic Scholar, arXiv, PubMed, etc.)
+- Explain concepts and methodologies mentioned in papers
+- Identify key themes, connections, and research directions
+
+Important guidelines:
+- DO NOT fabricate specific paper titles, authors, or citations
+- Instead, suggest specific search terms and database queries
+- When asked about similar papers, describe the types of papers to look for and what keywords to use
+- Be honest about the limitations of your knowledge
+- Focus on being genuinely helpful for research discovery
+
+Format your responses clearly with:
+- Bullet points for lists of suggestions
+- Bold text for key terms (**term**)
+- Numbered steps for instructions`;
+}
+
+function buildResearchQuery(actionType: ResearchActionType, selectedText: string, customQuery?: string): string {
+  switch (actionType) {
+    case "find_similar":
+      return `I'm reading a research paper and selected this text: "${selectedText}"
+
+Please help me find similar papers or research. What specific search queries should I use? What databases would be most relevant? What related topics or keywords should I explore?`;
+    
+    case "explore_topic":
+      return `I'm reading a research paper and selected this text: "${selectedText}"
+
+Please help me explore this topic more deeply. What are the key concepts mentioned? What are the main research directions in this area? What search terms would help me find foundational and recent work on this topic?`;
+    
+    case "ask_question":
+      return `I'm reading a research paper and selected this text: "${selectedText}"
+
+Please explain this passage to me. What are the key concepts? How does this fit into the broader research context? Are there any technical terms I should understand?`;
+    
+    case "custom_query":
+      return `I'm reading a research paper and selected this text: "${selectedText}"
+
+My question is: ${customQuery || "Please analyze this text."}`;
+    
+    default:
+      return `Selected text: "${selectedText}"\n\n${customQuery || "Please help me understand this."}`;
+  }
+}
 
 const upload = multer({ 
   dest: "uploads/",
@@ -487,6 +544,109 @@ export async function registerRoutes(
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to get preview" });
+    }
+  });
+
+  // Research Chat - Get chat history for a paper
+  app.get("/api/papers/:paperId/research-chat", async (req, res) => {
+    try {
+      const messages = await storage.getResearchChatMessages(req.params.paperId);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error getting research chat:", error);
+      res.status(500).json({ error: "Failed to get chat history" });
+    }
+  });
+
+  // Research Chat - Clear chat history for a paper
+  app.delete("/api/papers/:paperId/research-chat", async (req, res) => {
+    try {
+      await storage.clearResearchChatMessages(req.params.paperId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error clearing research chat:", error);
+      res.status(500).json({ error: "Failed to clear chat history" });
+    }
+  });
+
+  // Research Chat - Send message and get AI response (streaming)
+  app.post("/api/papers/:paperId/research-chat", async (req, res) => {
+    try {
+      const paperId = req.params.paperId;
+      const paper = await storage.getPaper(paperId);
+      if (!paper) {
+        return res.status(404).json({ error: "Paper not found" });
+      }
+
+      const parseResult = researchChatRequestSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Invalid request", details: parseResult.error.errors });
+      }
+
+      const { query, selectedText, actionType } = parseResult.data;
+
+      // Build the user message
+      const userMessage = buildResearchQuery(actionType, selectedText, query);
+
+      // Save user message
+      await storage.createResearchChatMessage({
+        paperId,
+        role: "user",
+        content: userMessage,
+        selectedText,
+        actionType,
+      });
+
+      // Get chat history for context
+      const history = await storage.getResearchChatMessages(paperId);
+      const contextMessages = history.slice(-10).map(m => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
+
+      // Set up SSE
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+
+      // Stream response from Anthropic
+      const stream = anthropic.messages.stream({
+        model: "claude-sonnet-4-5",
+        max_tokens: 2048,
+        system: getResearchSystemPrompt(),
+        messages: contextMessages,
+      });
+
+      let fullResponse = "";
+
+      for await (const event of stream) {
+        if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+          const content = event.delta.text;
+          if (content) {
+            fullResponse += content;
+            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+          }
+        }
+      }
+
+      // Save assistant message
+      await storage.createResearchChatMessage({
+        paperId,
+        role: "assistant",
+        content: fullResponse,
+      });
+
+      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+      res.end();
+    } catch (error) {
+      console.error("Research chat error:", error);
+      // Check if headers already sent (SSE streaming started)
+      if (res.headersSent) {
+        res.write(`data: ${JSON.stringify({ error: "Failed to process request" })}\n\n`);
+        res.end();
+      } else {
+        res.status(500).json({ error: "Failed to process research query" });
+      }
     }
   });
 
