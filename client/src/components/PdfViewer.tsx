@@ -125,17 +125,30 @@ export function PdfViewer({
     }>;
 
     textItems.forEach((item) => {
+      if (!item.str) return;
+      
       const div = document.createElement("span");
       div.textContent = item.str;
+      
       const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+      const fontHeight = Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]);
+      const angle = Math.atan2(tx[1], tx[0]);
+      
       div.style.left = `${tx[4]}px`;
       div.style.top = `${viewport.height - tx[5]}px`;
-      div.style.fontSize = `${Math.abs(tx[0])}px`;
+      div.style.fontSize = `${fontHeight}px`;
+      div.style.fontFamily = "sans-serif";
       div.style.position = "absolute";
       div.style.whiteSpace = "pre";
       div.style.cursor = "text";
       div.style.color = "transparent";
       div.style.userSelect = "text";
+      
+      if (angle !== 0) {
+        div.style.transform = `rotate(${angle}rad)`;
+        div.style.transformOrigin = "left bottom";
+      }
+      
       textLayer.appendChild(div);
     });
   }, [pdfDoc, scale]);
