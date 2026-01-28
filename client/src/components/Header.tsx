@@ -76,20 +76,22 @@ export function Header({
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="relative">
-          <Input
+        <label className="cursor-pointer">
+          <input
             type="file"
             accept=".pdf,application/pdf"
             onChange={handleFileChange}
-            className="absolute inset-0 opacity-0 cursor-pointer"
+            className="sr-only"
             data-testid="input-upload-pdf"
           />
-          <Button variant="outline" size="sm" data-testid="button-upload">
-            <Upload className="w-4 h-4 mr-2" />
-            <span className="hidden sm:inline">Upload PDF</span>
-            <span className="sm:hidden">Upload</span>
+          <Button variant="outline" size="sm" asChild data-testid="button-upload">
+            <span>
+              <Upload className="w-4 h-4 mr-2" />
+              <span className="hidden sm:inline">Upload PDF</span>
+              <span className="sm:hidden">Upload</span>
+            </span>
           </Button>
-        </div>
+        </label>
 
         <Button 
           variant="outline" 
