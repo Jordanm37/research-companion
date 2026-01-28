@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { SelectionPopup } from "./SelectionPopup";
 import { 
   ChevronLeft, 
@@ -297,78 +298,113 @@ export function PdfViewer({
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between p-2 border-b bg-card gap-2 flex-wrap">
         <div className="flex items-center gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage <= 1}
-            data-testid="button-prev-page"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage <= 1}
+                data-testid="button-prev-page"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Previous Page</TooltipContent>
+          </Tooltip>
           <span className="text-sm px-2 min-w-[80px] text-center" data-testid="text-page-number">
             {currentPage} / {totalPages}
           </span>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage >= totalPages}
-            data-testid="button-next-page"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage >= totalPages}
+                data-testid="button-next-page"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Next Page</TooltipContent>
+          </Tooltip>
         </div>
 
         <div className="flex items-center gap-1">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => setScale(Math.max(0.5, scale - 0.2))}
-            disabled={scale <= 0.5}
-            data-testid="button-zoom-out"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setScale(Math.max(0.5, scale - 0.2))}
+                disabled={scale <= 0.5}
+                data-testid="button-zoom-out"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Zoom Out</TooltipContent>
+          </Tooltip>
           <span className="text-sm px-2 min-w-[50px] text-center" data-testid="text-zoom-level">
             {Math.round(scale * 100)}%
           </span>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => setScale(Math.min(3, scale + 0.2))}
-            disabled={scale >= 3}
-            data-testid="button-zoom-in"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setScale(Math.min(3, scale + 0.2))}
+                disabled={scale >= 3}
+                data-testid="button-zoom-in"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Zoom In</TooltipContent>
+          </Tooltip>
         </div>
 
         <div className="flex items-center gap-1">
-          <Button
-            size="icon"
-            variant={toolMode === "highlight" ? "default" : "ghost"}
-            onClick={() => setToolMode(toolMode === "highlight" ? "select" : "highlight")}
-            data-testid="button-tool-highlight"
-          >
-            <Highlighter className="w-4 h-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant={toolMode === "rectangle" ? "default" : "ghost"}
-            onClick={() => setToolMode(toolMode === "rectangle" ? "select" : "rectangle")}
-            data-testid="button-tool-rectangle"
-          >
-            <Square className="w-4 h-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant={toolMode === "margin_note" ? "default" : "ghost"}
-            onClick={() => setToolMode(toolMode === "margin_note" ? "select" : "margin_note")}
-            data-testid="button-tool-margin-note"
-          >
-            <StickyNote className="w-4 h-4" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant={toolMode === "highlight" ? "default" : "ghost"}
+                onClick={() => setToolMode(toolMode === "highlight" ? "select" : "highlight")}
+                data-testid="button-tool-highlight"
+              >
+                <Highlighter className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Highlight Text</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant={toolMode === "rectangle" ? "default" : "ghost"}
+                onClick={() => setToolMode(toolMode === "rectangle" ? "select" : "rectangle")}
+                data-testid="button-tool-rectangle"
+              >
+                <Square className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Draw Rectangle</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant={toolMode === "margin_note" ? "default" : "ghost"}
+                onClick={() => setToolMode(toolMode === "margin_note" ? "select" : "margin_note")}
+                data-testid="button-tool-margin-note"
+              >
+                <StickyNote className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Add Margin Note</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 
