@@ -35,6 +35,7 @@ interface SidePanelProps {
     input: Record<string, unknown>;
   } | null;
   onClearResearchChat: () => void;
+  onSendResearchFollowUp?: (message: string) => void;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
 }
@@ -60,6 +61,7 @@ export function SidePanel({
   currentActionType,
   activeToolUse,
   onClearResearchChat,
+  onSendResearchFollowUp,
   activeTab = "annotations",
   onTabChange,
 }: SidePanelProps) {
@@ -126,6 +128,7 @@ export function SidePanel({
             currentActionType={currentActionType}
             activeToolUse={activeToolUse}
             onClearChat={onClearResearchChat}
+            onSendFollowUp={onSendResearchFollowUp}
           />
         </TabsContent>
       </Tabs>

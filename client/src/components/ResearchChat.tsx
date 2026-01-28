@@ -1,7 +1,10 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Trash2, MessageSquare, Bot, User, BookOpen, Search } from "lucide-react";
+import { Loader2, Trash2, MessageSquare, Bot, User, BookOpen, Search, Send } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { ResearchChatMessage } from "@shared/schema";
 
 interface MatchedReference {
@@ -26,6 +29,7 @@ interface ResearchChatProps {
   currentActionType?: string | null;
   activeToolUse?: ActiveToolUse | null;
   onClearChat: () => void;
+  onSendFollowUp?: (message: string) => void;
 }
 
 export function ResearchChat({
@@ -37,14 +41,23 @@ export function ResearchChat({
   currentActionType,
   activeToolUse,
   onClearChat,
+  onSendFollowUp,
 }: ResearchChatProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [followUpMessage, setFollowUpMessage] = useState("");
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, streamingContent]);
+
+  const handleSendFollowUp = () => {
+    if (followUpMessage.trim() && onSendFollowUp) {
+      onSendFollowUp(followUpMessage.trim());
+      setFollowUpMessage("");
+    }
+  };
 
   if (!paperId) {
     return (
@@ -125,8 +138,14 @@ export function ResearchChat({
                     {message.selectedText.length > 100 ? "..." : ""}"
                   </div>
                 )}
-                <div className="whitespace-pre-wrap break-words">
-                  {message.content}
+                <div className="prose prose-sm dark:prose-invert max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                  {message.role === "assistant" ? (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {message.content}
+                    </ReactMarkdown>
+                  ) : (
+                    <span className="whitespace-pre-wrap">{message.content}</span>
+                  )}
                 </div>
               </div>
               {message.role === "user" && (
@@ -194,8 +213,10 @@ export function ResearchChat({
                   </div>
                 )}
                 {streamingContent ? (
-                  <div className="whitespace-pre-wrap break-words">
-                    {streamingContent}
+                  <div className="prose prose-sm dark:prose-invert max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {streamingContent}
+                    </ReactMarkdown>
                   </div>
                 ) : !activeToolUse ? (
                   <div className="flex items-center gap-2 text-muted-foreground">
@@ -208,6 +229,33 @@ export function ResearchChat({
           )}
         </div>
       </ScrollArea>
+
+      <div className="p-2 border-t">
+        <div className="flex gap-2">
+          <Input
+            placeholder="Ask a follow-up question..."
+            value={followUpMessage}
+            onChange={(e) => setFollowUpMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSendFollowUp();
+              }
+            }}
+            disabled={isLoading || messages.length === 0}
+            className="flex-1"
+            data-testid="input-followup-message"
+          />
+          <Button
+            size="icon"
+            onClick={handleSendFollowUp}
+            disabled={!followUpMessage.trim() || isLoading || messages.length === 0}
+            data-testid="button-send-followup"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -380,6 +380,83 @@ export default function ReaderPage() {
     }
   }, [activePaperId, toast]);
 
+  const handleResearchFollowUp = useCallback(async (message: string) => {
+    if (!activePaperId) return;
+
+    setIsResearchChatLoading(true);
+    setResearchChatStreamingContent("");
+    setCurrentActionType("custom_query");
+    setMatchedReference(null);
+    setActiveToolUse(null);
+
+    try {
+      const response = await fetch(`/api/papers/${activePaperId}/research-chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query: message,
+          selectedText: "",
+          actionType: "custom_query",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send follow-up message");
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let fullContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.toolUse) {
+                setActiveToolUse(data.toolUse);
+              }
+              if (data.content) {
+                setActiveToolUse(null);
+                fullContent += data.content;
+                setResearchChatStreamingContent(fullContent);
+              }
+              if (data.done) {
+                setResearchChatStreamingContent("");
+                setCurrentActionType(null);
+                setActiveToolUse(null);
+                queryClient.invalidateQueries({ 
+                  queryKey: ["/api/papers", activePaperId, "research-chat"] 
+                });
+              }
+              if (data.error) {
+                throw new Error(data.error);
+              }
+            } catch {
+              // Ignore JSON parse errors for incomplete chunks
+            }
+          }
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Follow-up failed",
+        description: "Could not get AI response",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResearchChatLoading(false);
+    }
+  }, [activePaperId, toast]);
+
   const pdfUrl = activePaperId ? `/api/papers/${activePaperId}/pdf` : null;
 
   return (
@@ -434,6 +511,7 @@ export default function ReaderPage() {
             currentActionType={currentActionType}
             activeToolUse={activeToolUse}
             onClearResearchChat={handleClearResearchChat}
+            onSendResearchFollowUp={handleResearchFollowUp}
             activeTab={activeTab}
             onTabChange={setActiveTab}
           />
