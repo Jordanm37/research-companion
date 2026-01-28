@@ -30,6 +30,16 @@ export const annotationTypeEnum = z.enum([
 ]);
 export type AnnotationType = z.infer<typeof annotationTypeEnum>;
 
+// Extracted reference from a paper's bibliography
+export const referenceSchema = z.object({
+  index: z.number(),
+  rawText: z.string(),
+  authors: z.string().optional(),
+  year: z.string().optional(),
+  title: z.string().optional(),
+});
+export type Reference = z.infer<typeof referenceSchema>;
+
 // Paper schema
 export const paperSchema = z.object({
   id: z.string(),
@@ -39,6 +49,8 @@ export const paperSchema = z.object({
   filename: z.string(),
   filePath: z.string(),
   createdAt: z.string(),
+  extractedText: z.string().optional(),
+  references: z.array(referenceSchema).optional(),
 });
 export type Paper = z.infer<typeof paperSchema>;
 

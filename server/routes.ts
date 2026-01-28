@@ -7,6 +7,8 @@ import fs from "fs";
 import crypto from "crypto";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
+import * as pdfParseModule from "pdf-parse";
+const pdfParse = (pdfParseModule as any).default || pdfParseModule;
 import { 
   insertAnnotationSchema, 
   updateAnnotationSchema,
@@ -15,8 +17,10 @@ import {
   aiRequestSchema,
   exportRequestSchema,
   researchChatRequestSchema,
-  type ResearchActionType
+  type ResearchActionType,
+  type Reference
 } from "@shared/schema";
+import { findReferencesSection, parseReferences, matchCitationToReference } from "./referenceExtractor";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -50,7 +54,12 @@ Format your responses clearly with:
 - Numbered steps for instructions`;
 }
 
-function buildResearchQuery(actionType: ResearchActionType, selectedText: string, customQuery?: string): string {
+function buildResearchQuery(
+  actionType: ResearchActionType, 
+  selectedText: string, 
+  customQuery?: string,
+  matchedReference?: Reference | null
+): string {
   switch (actionType) {
     case "find_similar":
       return `I'm reading a research paper and selected this text: "${selectedText}"
@@ -73,7 +82,14 @@ Please explain this passage to me. What are the key concepts? How does this fit 
 My question is: ${customQuery || "Please analyze this text."}`;
 
     case "paper_summary":
-      return `I'm reading a research paper and highlighted this citation or paper reference: "${selectedText}"
+      if (matchedReference) {
+        return `I'm reading a research paper and highlighted this citation: "${selectedText}"
+
+I found the full reference in the paper's bibliography:
+"${matchedReference.rawText}"
+${matchedReference.authors ? `Authors: ${matchedReference.authors}` : ""}
+${matchedReference.year ? `Year: ${matchedReference.year}` : ""}
+${matchedReference.title ? `Title: ${matchedReference.title}` : ""}
 
 Please provide a summary of this cited paper. Include:
 - The main thesis or key contribution of the paper
@@ -83,6 +99,20 @@ Please provide a summary of this cited paper. Include:
 - Any important caveats about the paper's scope or limitations
 
 If you're not certain about specific details, please indicate that and provide what general knowledge you have about this work.`;
+      } else {
+        return `I'm reading a research paper and highlighted this citation or paper reference: "${selectedText}"
+
+(Note: I couldn't find this citation in the paper's reference list, so I'm working with just the selected text.)
+
+Please provide a summary of this cited paper. Include:
+- The main thesis or key contribution of the paper
+- The methodology or approach used
+- Key findings or claims that are commonly cited
+- How this paper typically relates to other research in the field
+- Any important caveats about the paper's scope or limitations
+
+If you're not certain about specific details, please indicate that and provide what general knowledge you have about this work.`;
+      }
     
     default:
       return `Selected text: "${selectedText}"\n\n${customQuery || "Please help me understand this."}`;
@@ -158,6 +188,27 @@ export async function registerRoutes(
       const newPath = path.join("uploads", `${stableId}_${sanitizedName}`);
       fs.renameSync(filePath, newPath);
 
+      // Extract text from PDF
+      let extractedText: string | undefined;
+      let references: Reference[] | undefined;
+      
+      try {
+        const pdfData = await pdfParse(buffer);
+        extractedText = pdfData.text || "";
+        
+        // Extract references section
+        if (extractedText) {
+          const referencesSection = findReferencesSection(extractedText);
+          if (referencesSection) {
+            references = parseReferences(referencesSection);
+            console.log(`Extracted ${references.length} references from PDF`);
+          }
+        }
+      } catch (parseError) {
+        console.error("PDF text extraction failed:", parseError);
+        // Continue without extracted text - it's optional
+      }
+
       // Extract title from filename (remove .pdf extension)
       const title = originalName.replace(/\.pdf$/i, "");
 
@@ -165,6 +216,8 @@ export async function registerRoutes(
         title,
         filename: originalName,
         filePath: newPath,
+        extractedText,
+        references,
       }, stableId);
 
       res.json(paper);
@@ -559,6 +612,20 @@ export async function registerRoutes(
     }
   });
 
+  // Get references for a paper
+  app.get("/api/papers/:paperId/references", async (req, res) => {
+    try {
+      const paper = await storage.getPaper(req.params.paperId);
+      if (!paper) {
+        return res.status(404).json({ error: "Paper not found" });
+      }
+      res.json(paper.references || []);
+    } catch (error) {
+      console.error("Error getting references:", error);
+      res.status(500).json({ error: "Failed to get references" });
+    }
+  });
+
   // Research Chat - Get chat history for a paper
   app.get("/api/papers/:paperId/research-chat", async (req, res) => {
     try {
@@ -597,8 +664,17 @@ export async function registerRoutes(
 
       const { query, selectedText, actionType } = parseResult.data;
 
-      // Build the user message
-      const userMessage = buildResearchQuery(actionType, selectedText, query);
+      // For paper_summary action, try to match citation to reference
+      let matchedReference: Reference | null = null;
+      if (actionType === "paper_summary" && paper.references && selectedText) {
+        matchedReference = matchCitationToReference(selectedText, paper.references);
+        if (matchedReference) {
+          console.log(`Matched citation "${selectedText}" to reference: ${matchedReference.rawText.slice(0, 100)}...`);
+        }
+      }
+
+      // Build the user message with matched reference if available
+      const userMessage = buildResearchQuery(actionType, selectedText, query, matchedReference);
 
       // Save user message
       await storage.createResearchChatMessage({
