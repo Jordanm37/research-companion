@@ -1,11 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "./ThemeProvider";
-import { 
-  Upload, 
-  Download, 
-  Sun, 
-  Moon, 
+import {
+  Upload,
+  Download,
+  Sun,
+  Moon,
   FolderOpen,
   FileText,
   Settings,
@@ -22,23 +22,31 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
+import { PaperMetadataPanel } from "./PaperMetadataPanel";
+import type { Paper, UpdatePaper } from "@shared/types";
 
 interface HeaderProps {
   paperTitle: string | null;
+  paper?: Paper;
   onUpload: (file: File) => void;
   onExport: () => void;
   isExporting: boolean;
   vaultPath: string;
   onVaultPathChange: (path: string) => void;
+  onUpdatePaper?: (updates: UpdatePaper) => Promise<void>;
+  isUpdatingPaper?: boolean;
 }
 
 export function Header({
   paperTitle,
+  paper,
   onUpload,
   onExport,
   isExporting,
   vaultPath,
   onVaultPathChange,
+  onUpdatePaper,
+  isUpdatingPaper,
 }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -93,9 +101,9 @@ export function Header({
           </Button>
         </label>
 
-        <Button 
-          variant="outline" 
-          size="sm" 
+        <Button
+          variant="outline"
+          size="sm"
           onClick={onExport}
           disabled={!paperTitle || isExporting}
           data-testid="button-export"
@@ -107,6 +115,14 @@ export function Header({
           )}
           <span className="hidden sm:inline">Export</span>
         </Button>
+
+        {paper && onUpdatePaper && (
+          <PaperMetadataPanel
+            paper={paper}
+            onUpdate={onUpdatePaper}
+            isUpdating={isUpdatingPaper}
+          />
+        )}
 
         <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
           <DialogTrigger asChild>

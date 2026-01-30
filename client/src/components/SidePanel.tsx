@@ -36,6 +36,8 @@ interface SidePanelProps {
   } | null;
   onClearResearchChat: () => void;
   onSendResearchFollowUp?: (message: string) => void;
+  onSaveAsNote?: (content: string, noteType: NoteType) => void;
+  onAddPaperToLibrary?: (url: string, title?: string) => Promise<void>;
   activeTab?: string;
   onTabChange?: (tab: string) => void;
 }
@@ -62,6 +64,8 @@ export function SidePanel({
   activeToolUse,
   onClearResearchChat,
   onSendResearchFollowUp,
+  onSaveAsNote,
+  onAddPaperToLibrary,
   activeTab = "annotations",
   onTabChange,
 }: SidePanelProps) {
@@ -103,6 +107,9 @@ export function SidePanel({
             onAnnotationClick={onAnnotationClick}
             onUpdateComment={onUpdateAnnotationComment}
             highlightedId={highlightedAnnotationId}
+            onCreateNote={onCreateNote}
+            onAIAction={onAIAction}
+            isAILoading={isAILoading}
           />
         </TabsContent>
 
@@ -129,6 +136,8 @@ export function SidePanel({
             activeToolUse={activeToolUse}
             onClearChat={onClearResearchChat}
             onSendFollowUp={onSendResearchFollowUp}
+            onSaveAsNote={onSaveAsNote}
+            onAddPaperToLibrary={onAddPaperToLibrary}
           />
         </TabsContent>
       </Tabs>

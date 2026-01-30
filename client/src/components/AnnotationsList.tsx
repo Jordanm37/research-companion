@@ -3,15 +3,27 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Highlighter, 
-  Square, 
-  StickyNote, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Highlighter,
+  Square,
+  StickyNote,
   MessageSquare,
   Check,
-  X
+  X,
+  Sparkles,
+  FileText,
+  Loader2,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
-import type { Annotation } from "@shared/schema";
+import type { Annotation, NoteType, AIActionType } from "@shared/schema";
 
 interface AnnotationsListProps {
   annotations: Annotation[];
@@ -20,7 +32,25 @@ interface AnnotationsListProps {
   onAnnotationClick: (id: string) => void;
   onUpdateComment: (id: string, comment: string) => void;
   highlightedId: string | null;
+  onCreateNote?: (type: NoteType, content: string, annotationIds: string[]) => void;
+  onAIAction?: (actionType: AIActionType, annotationIds: string[], noteIds: string[]) => Promise<string>;
+  isAILoading?: boolean;
 }
+
+const noteTypeOptions: { value: NoteType; label: string }[] = [
+  { value: "summary", label: "Summary" },
+  { value: "critique", label: "Critique" },
+  { value: "question", label: "Question" },
+  { value: "insight", label: "Insight" },
+  { value: "connection", label: "Connection" },
+  { value: "custom", label: "Custom" },
+];
+
+const quickAIActions: { type: AIActionType; label: string }[] = [
+  { type: "summarize", label: "Summarize" },
+  { type: "critique", label: "Critique" },
+  { type: "question", label: "Questions" },
+];
 
 const annotationTypeConfig = {
   highlight: { icon: Highlighter, label: "Highlight", color: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-400" },
@@ -35,9 +65,17 @@ export function AnnotationsList({
   onAnnotationClick,
   onUpdateComment,
   highlightedId,
+  onCreateNote,
+  onAIAction,
+  isAILoading = false,
 }: AnnotationsListProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editComment, setEditComment] = useState("");
+  const [expandedNoteId, setExpandedNoteId] = useState<string | null>(null);
+  const [noteContent, setNoteContent] = useState("");
+  const [noteType, setNoteType] = useState<NoteType>("insight");
+  const [loadingAnnotationId, setLoadingAnnotationId] = useState<string | null>(null);
+  const [aiPreview, setAiPreview] = useState<{ annotationId: string; content: string; type: NoteType } | null>(null);
 
   const handleStartEdit = (annotation: Annotation) => {
     setEditingId(annotation.id);
@@ -53,6 +91,49 @@ export function AnnotationsList({
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditComment("");
+  };
+
+  const handleToggleNoteForm = (annotationId: string) => {
+    if (expandedNoteId === annotationId) {
+      setExpandedNoteId(null);
+      setNoteContent("");
+      setAiPreview(null);
+    } else {
+      setExpandedNoteId(annotationId);
+      setNoteContent("");
+      setNoteType("insight");
+      setAiPreview(null);
+    }
+  };
+
+  const handleCreateNote = (annotationId: string) => {
+    if (!onCreateNote || !noteContent.trim()) return;
+    onCreateNote(noteType, noteContent.trim(), [annotationId]);
+    setExpandedNoteId(null);
+    setNoteContent("");
+  };
+
+  const handleQuickAI = async (annotationId: string, actionType: AIActionType) => {
+    if (!onAIAction) return;
+    setLoadingAnnotationId(annotationId);
+    try {
+      const result = await onAIAction(actionType, [annotationId], []);
+      const mappedType: NoteType =
+        actionType === "summarize" ? "summary" :
+        actionType === "critique" ? "critique" :
+        actionType === "question" ? "question" : "insight";
+      setAiPreview({ annotationId, content: result, type: mappedType });
+      setExpandedNoteId(annotationId);
+    } finally {
+      setLoadingAnnotationId(null);
+    }
+  };
+
+  const handleConfirmAINote = () => {
+    if (!onCreateNote || !aiPreview) return;
+    onCreateNote(aiPreview.type, aiPreview.content, [aiPreview.annotationId]);
+    setAiPreview(null);
+    setExpandedNoteId(null);
   };
 
   const sortedAnnotations = [...annotations].sort((a, b) => {
@@ -173,19 +254,129 @@ export function AnnotationsList({
                           {annotation.comment}
                         </p>
                       )}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="mt-1 h-7 text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleStartEdit(annotation);
-                        }}
-                        data-testid={`button-edit-comment-${annotation.id}`}
-                      >
-                        <MessageSquare className="w-3 h-3 mr-1" />
-                        {annotation.comment ? "Edit comment" : "Add comment"}
-                      </Button>
+
+                      {/* Action buttons row */}
+                      <div className="flex items-center gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs"
+                          onClick={() => handleStartEdit(annotation)}
+                          data-testid={`button-edit-comment-${annotation.id}`}
+                        >
+                          <MessageSquare className="w-3 h-3 mr-1" />
+                          {annotation.comment ? "Edit" : "Comment"}
+                        </Button>
+
+                        {onCreateNote && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs"
+                            onClick={() => handleToggleNoteForm(annotation.id)}
+                            data-testid={`button-create-note-${annotation.id}`}
+                          >
+                            {expandedNoteId === annotation.id ? (
+                              <ChevronUp className="w-3 h-3 mr-1" />
+                            ) : (
+                              <FileText className="w-3 h-3 mr-1" />
+                            )}
+                            Note
+                          </Button>
+                        )}
+
+                        {/* Quick AI Actions */}
+                        {onAIAction && annotation.quotedText && (
+                          <div className="flex gap-1">
+                            {quickAIActions.map((action) => (
+                              <Button
+                                key={action.type}
+                                size="sm"
+                                variant="secondary"
+                                className="h-6 text-xs px-2"
+                                onClick={() => handleQuickAI(annotation.id, action.type)}
+                                disabled={isAILoading || loadingAnnotationId === annotation.id}
+                                data-testid={`button-ai-${action.type}-${annotation.id}`}
+                              >
+                                {loadingAnnotationId === annotation.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Sparkles className="w-3 h-3 mr-1" />
+                                )}
+                                {action.label}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Inline Note Creation Form */}
+                      {expandedNoteId === annotation.id && (
+                        <div className="mt-3 p-2 rounded-md border bg-muted/30 space-y-2" onClick={(e) => e.stopPropagation()}>
+                          {aiPreview && aiPreview.annotationId === annotation.id ? (
+                            <>
+                              <div className="flex items-center gap-2 text-xs text-primary">
+                                <Sparkles className="w-3 h-3" />
+                                AI Generated - {aiPreview.type}
+                              </div>
+                              <p className="text-sm whitespace-pre-wrap bg-background p-2 rounded border">
+                                {aiPreview.content}
+                              </p>
+                              <div className="flex gap-1">
+                                <Button size="sm" onClick={handleConfirmAINote}>
+                                  <Check className="w-3 h-3 mr-1" />
+                                  Save Note
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => setAiPreview(null)}>
+                                  <X className="w-3 h-3 mr-1" />
+                                  Discard
+                                </Button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <Select value={noteType} onValueChange={(v) => setNoteType(v as NoteType)}>
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {noteTypeOptions.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Textarea
+                                value={noteContent}
+                                onChange={(e) => setNoteContent(e.target.value)}
+                                placeholder="Write your note..."
+                                className="text-sm min-h-[60px]"
+                                data-testid={`input-note-content-${annotation.id}`}
+                              />
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleCreateNote(annotation.id)}
+                                  disabled={!noteContent.trim()}
+                                  data-testid={`button-save-note-${annotation.id}`}
+                                >
+                                  <Check className="w-3 h-3 mr-1" />
+                                  Save
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleToggleNoteForm(annotation.id)}
+                                >
+                                  <X className="w-3 h-3 mr-1" />
+                                  Cancel
+                                </Button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
