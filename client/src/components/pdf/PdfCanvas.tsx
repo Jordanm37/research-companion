@@ -47,7 +47,7 @@ export const PdfCanvas = forwardRef<HTMLDivElement, PdfCanvasProps>(
         {/* Text layer for selection */}
         <div
           ref={textLayerRef}
-          className="absolute top-0 left-0 overflow-hidden"
+          className="pdf-text-layer absolute top-0 left-0 overflow-hidden"
           style={{ mixBlendMode: "multiply" }}
         />
 

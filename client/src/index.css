@@ -229,6 +229,17 @@
   }
 }
 
+/* PDF text layer selection styling */
+.pdf-text-layer span::selection {
+  background-color: hsl(var(--highlight-blue) / 0.5);
+  color: transparent;
+}
+
+.pdf-text-layer span::-moz-selection {
+  background-color: hsl(var(--highlight-blue) / 0.5);
+  color: transparent;
+}
+
 /**
  * Using the elevate system.
  * Automatic contrast adjustment.

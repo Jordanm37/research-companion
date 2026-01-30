@@ -130,8 +130,11 @@ export function usePdfRenderer(
       const fontHeight = Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1]);
       const angle = Math.atan2(tx[1], tx[0]);
 
+      // tx[5] is baseline position from bottom; subtract fontHeight for top of text
+      const topPos = pageViewport.height - tx[5] - fontHeight;
+
       div.style.left = `${tx[4]}px`;
-      div.style.top = `${pageViewport.height - tx[5]}px`;
+      div.style.top = `${topPos}px`;
       div.style.fontSize = `${fontHeight}px`;
       div.style.fontFamily = "sans-serif";
       div.style.position = "absolute";
@@ -139,10 +142,12 @@ export function usePdfRenderer(
       div.style.cursor = "text";
       div.style.color = "transparent";
       div.style.userSelect = "text";
+      // Ensure line-height matches font for precise selection
+      div.style.lineHeight = "1";
 
       if (angle !== 0) {
         div.style.transform = `rotate(${angle}rad)`;
-        div.style.transformOrigin = "left bottom";
+        div.style.transformOrigin = "left top";
       }
 
       textLayer.appendChild(div);
